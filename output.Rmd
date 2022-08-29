@@ -1,0 +1,195 @@
+---
+title: "Microeconometrics Report I: *Does Working from Home Work? Evidence from a Chinese Experiment¹*"
+author: "Pedro Scatimburgo"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    theme: readable
+    toc: true
+    number_sections: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+<style type="text/css">
+
+h1.title {
+  font-size: 24px;
+  color: black;
+  text-align: center;
+}
+subtitle {
+  font-size: 24px;
+  color: black;
+  text-align: center;
+}
+h4.author { /* Header 4 - and the author and data headers use this too  */
+    font-size: 16px;
+  font-family: "Kaleko205Text-Bold", Kaleko 205, Bold;
+  color: black;
+  text-align: center;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+  font-size: 16px;
+  font-family: "Kaleko205Text-Bold", Kaleko 205, Bold;
+  color: black;
+  text-align: center;
+}
+</style>
+
+> ¹Nicholas Bloom, James Liang, John Roberts, Zhichun Jenny Ying, **Does Working from Home Work? Evidence from a Chinese Experiment**, The Quarterly Journal of Economics, Volume 130, Issue 1, February 2015, Pages 165–218. *[Link to the lastest version.](https://drive.google.com/file/d/1DPhkrgydBA7Xt9ZHHQv8ZcpBSbzgfy-F/)*. *[Link to data.](https://drive.google.com/file/d/1xvEVI74v3xsfnwNvRwyOz9Mup-aNYiE8/view?usp=sharing/)*
+
+
+# Briefly summarize the research question in the paper, and why it is interesting. What is the main parameter of interest?
+
+The authors try to understand the impact of working from home (WFH) on firms and workers. Although there has always been interest in WFH practices, it wasn't until the COVID-19 Pandemic that WFH was widely adopted worldwide. This particular paper is interesting because its experiment was conducted between 2012 and 2013, much before the pandemic and the dissemination of WFH after 2020.
+
+Even before the pandemic, WFH practices sparked great interest because they presented a myriad of possibilities and worries for both firms and workers: for firms, it could reduce costs, but at the same time reduce productivity because of lack of supervision and miscommunication; for workers, it could improve well-being by allowing more time with family -- especially in the case of parents --, but it could create a work-life misbalance. Furthermore, WFH also has public policy implications related to commuting and the use of urban spaces.
+
+There are several parameters of interest related to both firms and workers. For the firms, the main parameter of interest is the overall employee performance, a normalized z-score measure. Other parameters include phone calls and minutes on the phone. For the workers, the main parameter is satisfaction. Other parameters include attrition and exhaustion.
+
+# Briefly describe the design of the experiment.
+
+The experiment consisted in randomly assigning call center workers from a large Chinese travel agency to work from home for four days a week, while attending the office for one day a week. The workers were organized in teams consisting of 10 to 15 employees who operated on the same shifts, which was determined in advance by the firm. Randomization was performed at the individual level: on the same team, there were workers from the treatment (WFH) and comparison (office-based) groups. Individuals from the same team worked on the same schedules and had the same supervisor (who was always office-based), besides receiving an identical number of incoming calls. All workers used the same software and equipment provided by the firm, faced the same pay structure, and received the same training. For the treatment group, however, training was received only on the day they were in the office. An entire team could have their shifts changed, but individual workers from the both the treatment and the comparison groups were not allowed to work overtime. Thus, the authors argue that treatment changed only the location of work.
+
+The employees were previously informed of the WFH program. They all took a survey that assessed their qualification and willingness to participate, without being informed of the participation criteria. Among the workers deemed qualified for the program, 503 (51%) volunteered. The ualifications for the program required that workers had a tenure of at least six months, broadband access to the Internet, and an independent workspace. Among the volunteers, 249 (50%) met the requirements and were recruited. This way, one could argue that the experiment had an oversubscription method: with limited implementation capacity, demand for the WFH program exceeded supply. Since the design of the experiment was selected from a sample that was already interested in the program to begin with, there is selection bias. Indeed, the authors report that those who volunteered for the program tended to have longer commuting time, less tenure in the firm, and be less educated. A public lottery based on birthdates then assigned workers for the treatment and control groups.
+
+# What is the minimum detectable effect for the main parameter of interest?  Did the study have adequate power? (you can use the authors’ data to answer this question)
+
+Since the authors focus both on the firm and on the workers, I have conducted separated analysis for the two main parameters of interest: overall performance and satisfaction.
+
+First, I will load the files uploaded in the Nicholas Bloom's personal page. It will import 22 files, one for each of the analysis conducted by the authors. I will use only two dataframes: ``wfh/data/performance_during_exper.dta`` and ``wfh/data/satisfaction.dta``, which I will save on objects ``perormance`` and ``satisfaction``. These dataframes contain values for several variables, including overall performance, ``perform1``, and satisfaction, ``satisfaction``. Below I print the most relevant variables from each dataframe.
+
+```{r}
+files <- fs::dir_ls("wfh/data") %>%
+  purrr::map(haven::read_dta)
+
+performance <- files[["wfh/data/performance_during_exper.dta"]]
+satisfaction <- files[["wfh/data/satisfaction.dta"]]
+```
+
+```{r}
+knitr::kable(head(performance[,1:6]))
+```
+
+```{r}
+knitr::kable(head(satisfaction[,1:6]))
+```
+
+## Overall performance (firm's parameter)
+
+First let's see if we can replicate the authors' results (or at least get close to them). We want to run the following regression:
+
+\begin{equation}
+Employee Performance_{i,t} = \alpha Treat_i \times Experiment_t + \beta_t + \gamma_i + \epsilon_{i,t}
+\end{equation}
+
+This is the Stata code I am trying to replicate:
+
+```
+*col(1)
+xi:areg perform1 experiment_treatment i.year_week if year_week~=201049 &(expgroup==1|expgroup==0),ab(personid) cluster(personid)
+```
+
+From my understanding, this code is estimating a regression of ``perform1`` against ``experiment_treatment``, removing the ``year_week`` of ``201049`` from the sample, selecting only values for ``exproup`` of ``1`` or ``0``, clustering in ``personid`` and with fixed effects of ``personid`` and ``year_week``.  In ``R``, using ``estimatr::lm_robust``, this would be something like (I use ``se_type = "stata"`` to get as close as possible to the authors' results):
+
+```{r}
+reg1 <- estimatr::lm_robust(
+  data = filter(performance, (!year_week %in% c(201049) & expgroup %in% c(0,1))),
+  formula = perform1 ~ experiment_treatment,
+  clusters = personid,
+  fixed_effects = ~personid + year_week,
+  se_type = "stata")
+
+summary(reg1)
+```
+
+Which give us a estimate of ``r reg1$coefficients[1]``, a standard error of ``r reg1$std.error[1]``. The authors report values of 0.232 and 0.063, respectively. We did it!
+
+To find the minimum detectable effect for performance I will use the following formula:
+
+\begin{equation}
+\bar{\beta} = (t_\alpha+t_{1-\kappa})\sigma_{\hat{\beta}}
+\end{equation}
+
+Where $\bar{\beta}$ is the minimum detectable effect (MDE) given a statistical significance level of $\alpha$ and a power of $\kappa$. Following what we did in class, I will use a significance level of 95% and a power of 80%, that is: ``alpha = 0.95`` and ``kappa = 0.80``. $\sigma_{\hat{\beta}}$ is the standard deviation of the estimator. We can use its estimator, $\hat{\sigma}_{\hat{\beta}}$, which ``lm_robust`` already gave to us. Then, assuming normality, the minimum detectable effect for this parameter is:
+
+```{r}
+alpha <- 0.95
+kappa <- 0.80
+
+t_alpha <- qnorm(p = alpha)
+t_kappa_c <- qnorm(p = 1-kappa, lower.tail = F)
+
+(mde2 = (t_alpha + t_kappa_c)*reg1$std.error[1])
+```
+So the minimum detectable effect for the performance parameter is ``r mde2``. Now let's plug the estimated effect into this formula to find the power of the test, for a level of significance of 95% and the same standard error. We find that:
+
+```{r}
+t_kappa_c_plugged <- reg1$coefficients[1]/reg1$std.error[1] - t_alpha
+
+pnorm(q = t_kappa_c_plugged)
+```
+So the test had a power of approximately 98%, which is pretty high. Since the minimum detectable effect is so higher than the estimated effect, one could argue that the test was overpowered.
+
+## Satisfaction (workers' parameter)
+
+Here I will be briefer. I want to replicate the following code:
+
+```
+use satisfaction.dta, clear
+foreach i in satisfaction general life {
+gen ln`i'=ln(`i')
+xi:areg ln`i' expgroup_treatment i.surveyno, ab(personid) cluster(personid)
+}
+```
+
+From my understanding, this code estimates a regression of ``log(satisfaction)`` against ``expgroup_treatment``, clustered at ``personid`` and with fixed effects of ``surveyno`` and ``personid``. Then:
+
+
+```{r}
+reg2 <- estimatr::lm_robust(
+  data = satisfaction,
+  formula = log(satisfaction) ~ expgroup_treatment,
+  clusters = personid,
+  fixed_effects = ~personid + surveyno,
+  se_type = "stata")
+
+summary(reg2)
+```
+Again we are able to replicate the results. Since the code is analogous, I will simply paste it and make the appropriate changes:
+
+```{r}
+alpha <- 0.95
+kappa <- 0.80
+
+t_alpha <- qnorm(p = alpha)
+t_kappa_c <- qnorm(p = 1-kappa, lower.tail = F)
+
+(mde2 = (t_alpha + t_kappa_c)*reg2$std.error[1])
+```
+
+So the minimum detectable effect for the performance parameter is ``r mde2``. Now let's plug the estimated effect into this formula to find the power of the test, for a level of significance of 95% and the same standard error. We find that:
+
+```{r}
+t_kappa_c_plugged <- reg2$coefficients[1]/reg2$std.error[1] - t_alpha
+
+pnorm(q = t_kappa_c_plugged)
+
+
+```
+
+This time the power of the test is of approximately 85%. This power seems adequate.
+
+# Calculate randomization inference p-values, using as the estimator $\hat{\beta}$ and a t-statistict $t = \frac{\hat{\beta}}{se(\hat{\beta})}$.  In general, explain the reasons why those p-values may differ between each other, and also why they candiffer from p-values based on the asymptotic distribution of the estimator. How do these p-values differ in your example?
+
+## Overall performance (firm’s parameter)
+
+## Satisfaction (workers’ parameter)
+
+# Discuss potential problems in the experiment.  Discuss how you would be able to check whether theseproblems are relevant (for example, by looking at the available data or by collecting more data), or how the experiment could have been done differently to avoid such problems. Be clear about whether the potential problems you raised were discussed in the paper.
+

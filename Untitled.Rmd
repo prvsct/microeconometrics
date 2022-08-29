@@ -1,0 +1,14 @@
+---
+author: Pedro Scatimburgo
+date: '`r format(Sys.Date())`'
+title: Microeconometrics Report I
+subtitle: Does Working from Home Work? Evidence from a Chinese Experiment
+output: html_document
+description: Nicholas Bloom, James Liang, John Roberts, Zhichun Jenny Ying, Does Working
+  from Home Work? Evidence from a Chinese Experiment , The Quarterly Journal of Economics,
+  Volume 130, Issue 1, February 2015, Pages 165–218, https://doi.org/10.1093/qje/qju032
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
