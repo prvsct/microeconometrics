@@ -44,6 +44,17 @@ h4.date { /* Header 4 - and the author and data headers use this too  */
 
 > ¹Nicholas Bloom, James Liang, John Roberts, Zhichun Jenny Ying, **Does Working from Home Work? Evidence from a Chinese Experiment**, The Quarterly Journal of Economics, Volume 130, Issue 1, February 2015, Pages 165–218. *[Link to the lastest version.](https://drive.google.com/file/d/1DPhkrgydBA7Xt9ZHHQv8ZcpBSbzgfy-F/)*. *[Link to data.](https://drive.google.com/file/d/1xvEVI74v3xsfnwNvRwyOz9Mup-aNYiE8/view?usp=sharing/)*
 
+To run this code you will have to install and load ``tidyverse``, ``haven`` and ``estimatr``. ``tidyverse`` is the core of all the data wrangling. ``haven`` is used only for importing ``.dta`` files. ``estimatr`` performs robust estimations, including implementations for clusters and fixed effects.
+
+```{r eval=FALSE, include=TRUE}
+install.packages("tidyverse")
+install.packages("haven")
+install.packages("estimatr")
+
+library(tidyverse)
+library(haven)
+library(estimatr)
+```
 
 # Briefly summarize the research question in the paper, and why it is interesting. What is the main parameter of interest?
 
@@ -57,13 +68,15 @@ There are several parameters of interest related to both firms and workers. For 
 
 The experiment consisted in randomly assigning call center workers from a large Chinese travel agency to work from home for four days a week, while attending the office for one day a week. The workers were organized in teams consisting of 10 to 15 employees who operated on the same shifts, which was determined in advance by the firm. Randomization was performed at the individual level: on the same team, there were workers from the treatment (WFH) and comparison (office-based) groups. Individuals from the same team worked on the same schedules and had the same supervisor (who was always office-based), besides receiving an identical number of incoming calls. All workers used the same software and equipment provided by the firm, faced the same pay structure, and received the same training. For the treatment group, however, training was received only on the day they were in the office. An entire team could have their shifts changed, but individual workers from the both the treatment and the comparison groups were not allowed to work overtime. Thus, the authors argue that treatment changed only the location of work.
 
-The employees were previously informed of the WFH program. They all took a survey that assessed their qualification and willingness to participate, without being informed of the participation criteria. Among the workers deemed qualified for the program, 503 (51%) volunteered. The ualifications for the program required that workers had a tenure of at least six months, broadband access to the Internet, and an independent workspace. Among the volunteers, 249 (50%) met the requirements and were recruited. This way, one could argue that the experiment had an oversubscription method: with limited implementation capacity, demand for the WFH program exceeded supply. Since the design of the experiment was selected from a sample that was already interested in the program to begin with, there is selection bias. Indeed, the authors report that those who volunteered for the program tended to have longer commuting time, less tenure in the firm, and be less educated. A public lottery based on birthdates then assigned workers for the treatment and control groups.
+The employees were previously informed of the WFH program. They all took a survey that assessed their qualification and willingness to participate, without being informed of the participation criteria. Among the workers deemed qualified for the program, 503 (51%) volunteered. The qualifications for the program required that workers had a tenure of at least six months, broadband access to the Internet, and an independent workspace. Among the volunteers, 249 (50%) met the requirements and were recruited. A public lottery based on birthdates then assigned workers for the treatment and control groups. The research design involved problems of selection bias, attrition and imperfect compliance which will be discussed in question 5.
 
 # What is the minimum detectable effect for the main parameter of interest?  Did the study have adequate power? (you can use the authors’ data to answer this question)
 
 Since the authors focus both on the firm and on the workers, I have conducted separated analysis for the two main parameters of interest: overall performance and satisfaction.
 
-First, I will load the files uploaded in the Nicholas Bloom's personal page. It will import 22 files, one for each of the analysis conducted by the authors. I will use only two dataframes: ``wfh/data/performance_during_exper.dta`` and ``wfh/data/satisfaction.dta``, which I will save on objects ``perormance`` and ``satisfaction``. These dataframes contain values for several variables, including overall performance, ``perform1``, and satisfaction, ``satisfaction``. Below I print the most relevant variables from each dataframe.
+## Some preliminary data analysis
+
+First, I will load the files uploaded in the Nicholas Bloom's personal page. It will import 22 files, one for each of the analysis conducted by the authors. I will use only two dataframes: ``wfh/data/performance_during_exper.dta`` and ``wfh/data/satisfaction.dta``, which I will save on objects ``perormance`` and ``satisfaction``. These dataframes contain values for several variables, including overall performance, ``perform1``, and satisfaction, ``satisfaction``. I will select only the variables relevant for the estimations I will conduct here. Also, as we will see below, we have to filter some individuals from the ``performance`` dataframe to include only the 249 individuals who were part of the experiment, since it also contains data about individuals in other firms that were used for robustness tests.
 
 ```{r}
 files <- fs::dir_ls("wfh/data") %>%
@@ -74,44 +87,31 @@ satisfaction <- files[["wfh/data/satisfaction.dta"]]
 ```
 
 ```{r}
-knitr::kable(head(performance %>%
-                    select(
-                      personid,
-                      year_week,
-                      perform1,
-                      expgroup,
-                      treatment,
-                      experiment_treatment
-                      )
-                  )
-             )
+performance <- performance %>%
+  dplyr::filter((!year_week %in% c(201049) & expgroup %in% c(0,1))) %>% # Filters the dataframe to include only the data the authors use for this estimation
+  dplyr::select(personid, year_week, perform1, treatment, experiment_treatment) # Select only the variables we will use
+
+knitr::kable(head(performance)) # Plots the first rows of the dataframe as example.
 ```
 
 ```{r}
-knitr::kable(head(satisfaction %>%
-                    select(
-                      personid,
-                      satisfaction,
-                      expgroup_treatment,
-                      )
-                  )
-             )
+satisfaction <- satisfaction %>%
+  select(personid, surveyno, satisfaction, expgroup_treatment)
+
+knitr::kable(head(satisfaction))
 ```
 
-## Some preliminary data analysis
-
-First let's see if the data makes sense. The experiment was conducted for 85 weeks. There are 249 observations: 131 in the treatment group and 118 in the control group. The ``performance`` dataframe includes not only the individuals that participated in the experiment, but also individuals from other branches (which the authors use for some of the analysis). The ``satisfaction`` dataframe should also contain 249 individuals, who were surveyed for five times. So let's filter the ``performance`` dataframe and check these numbers:
+Now let's see if the data makes sense. The experiment was conducted for 85 weeks. There are 249 observations: 131 in the treatment group and 118 in the control group. The ``performance`` dataframe includes not only the individuals that participated in the experiment, but also individuals from other branches (which the authors use for some of the analysis). The ``satisfaction`` dataframe should also contain 249 individuals, who were surveyed for five times. So let's filter the ``performance`` dataframe and check these numbers:
 
 ```{r}
 performance %>%
-  dplyr::filter((!year_week %in% c(201049) & expgroup %in% c(0,1))) %>%
-  summarise(
-    total_individuals = length(unique(personid)),
-    weeks = length(unique(year_week))
+  dplyr::summarise( # summarise is a function that summarises data for a lack of better way to explain
+    total_individuals = length(unique(personid)), # How many unique individuals are there in the dataframe?
+    weeks = length(unique(year_week)) # How many unique weeks are there in the dataframe?
   )
 
 satisfaction %>%
-  summarise(
+  dplyr::summarise(
     individuals = length(unique(personid)),
     surveys = length(unique(surveyno))
   )
@@ -121,7 +121,7 @@ The ``performance`` dataframe contains 249 individuals and 85 weeks, as expected
 
 ## Overall performance (firm's parameter)
 
-First let's see if we can replicate the authors' results (or at least get close to them). We want to run the following regression:
+Let's replicate the authors' results (or at least get close to them). We want to run the following regression:
 
 \begin{equation}
 Employee Performance_{i,t} = \alpha Treat_i \times Experiment_t + \beta_t + \gamma_i + \epsilon_{i,t}
@@ -134,18 +134,17 @@ This is the Stata code I am trying to replicate:
 xi:areg perform1 experiment_treatment i.year_week if year_week~=201049 &(expgroup==1|expgroup==0),ab(personid) cluster(personid)
 ```
 
-From my understanding, this code is estimating a regression of ``perform1`` against ``experiment_treatment``, removing the ``year_week`` of ``201049`` from the sample, selecting only values for ``exproup`` of ``1`` or ``0``, clustering in ``personid`` and with fixed effects of ``personid`` and ``year_week``. That is, $Employee Performance_{i,t}$ is ``perform1`` and $Treat_i \times Experiment_t$ is ``experiment_treatment``. In R, using ``estimatr::lm_robust``, this would be something like (I use ``se_type = "stata"`` to get as close as possible to the authors' results; [click here for a discussion on the possible values for this argument](https://declaredesign.org/r/estimatr/articles/mathematical-notes.html "Who still uses Stata though?")):
+From my understanding, this code is estimating a regression of ``perform1`` against ``experiment_treatment``, removing the ``year_week`` of ``201049`` from the sample, selecting only values for ``exproup`` of ``1`` or ``0``, clustering in ``personid`` and with fixed effects of ``personid`` and ``year_week``. That is, $Employee Performance_{i,t}$ is ``perform1`` and $Treat_i \times Experiment_t$ is ``experiment_treatment``. I save the results of the regression in the ``reg1`` object. In R, using ``estimatr::lm_robust``, this would be something like (I use ``se_type = "stata"`` to get as close as possible to the authors' results; [click here for a discussion on the possible values for this argument](https://declaredesign.org/r/estimatr/articles/mathematical-notes.html "Who still uses Stata though?")):
 
 ```{r}
 
 reg1 <- performance %>%
-  dplyr::filter((!year_week %in% c(201049) & expgroup %in% c(0,1))) %>%
-  estimatr::lm_robust(formula = perform1 ~ experiment_treatment,
-                      clusters = personid,
-                      fixed_effects = ~personid + year_week,
-                      se_type = "stata")
+  estimatr::lm_robust(formula = perform1 ~ experiment_treatment, # This is how to write regression formulas in R. perform1 is regressed against experiment_treatment
+                      clusters = personid, # Clusters in personid, which is the individual
+                      fixed_effects = ~personid + year_week, # Fixed effects for both the individual and the week
+                      se_type = "stata") # We use Stata standard errors
 
-summary(reg1)
+summary(reg1) # Prints the results
 ```
 
 Which give us a estimate of ``r reg1$coefficients[1]``, a standard error of ``r reg1$std.error[1]``. The authors report values of 0.232 and 0.063, respectively. We did it!
@@ -153,29 +152,37 @@ Which give us a estimate of ``r reg1$coefficients[1]``, a standard error of ``r 
 To find the minimum detectable effect for performance I will use the following formula:
 
 \begin{equation}
-\bar{\beta} = (t_{\frac{\alpha}{2}}+t_{1-\kappa})\sigma_{\hat{\beta}}
+\bar{\beta} = \left(t_{\frac{\alpha}{2}}+t_{1-\kappa}\right)\sigma_{\hat{\beta}}
 \end{equation}
 
-Where $\bar{\beta}$ is the minimum detectable effect (MDE) given a statistical significance level of $\alpha$ and a power of $\kappa$. Following what we did in class, I will use a significance level of 95% and a power of 80% in a bicaudal test, that is: ``alpha = 0.975`` and ``kappa = 0.80``. $\sigma_{\hat{\beta}}$ is the standard deviation of the estimator. We can use its estimator, $\hat{\sigma}_{\hat{\beta}}$, which ``lm_robust`` already gave to us. Then, assuming normality, the minimum detectable effect for this parameter is:
+Where $\bar{\beta}$ is the minimum detectable effect (MDE) given a statistical significance level of $\alpha$ and a power of $\kappa$. Following what we did in class, I will use a significance level of 95% and a power of 80% in a bicaudal test, that is: ``alpha_2 = 0.975`` and ``kappa = 0.80``. $\sigma_{\hat{\beta}}$ is the standard deviation of the estimator. We can use its estimator, $\hat{\sigma}_{\hat{\beta}}$, which ``lm_robust`` already gave to us as the standard error of the estimator in the object ``reg1$std.error[1``. Then, assuming normality, the minimum detectable effect for this parameter is:
 
 ```{r}
-alpha <- 0.975
+alpha_2 <- 0.975 # 2,5% for each side (bicaudal)
 kappa <- 0.80
 
-t_alpha <- qnorm(p = alpha)
-t_kappa_c <- qnorm(p = 1-kappa, lower.tail = F)
+t_alpha_2 <- qnorm(p = alpha_2) # Returns the critical value in a normal distribution for a probability of alpha_2
+t_kappa_c <- qnorm(p = kappa) # We use kappa instead of 1-kappa because by default qnorm uses P[X <= x], if we used 1-kappa we would have to set lower.tail = F
 
-(mde1 = (t_alpha + t_kappa_c)*reg1$std.error[1])
+(mde1 = (t_alpha_2 + t_kappa_c)*reg1$std.error[1])
 ```
+
 So the minimum detectable effect for the performance parameter is ``r mde1``. Recall that this variable is normalized, so the minimum detectable effect is approximately ``r round(mde1,3)`` standard deviation. This seems like a very reasonable value for a MDE, specially considering that the estimated effect is approximately ``r round(reg1$coefficients[1],3)`` standard deviation.
 
-Now let's plug the estimated effect into this formula to find the power of the test, for a level of significance of 95% and the same standard error. We find that:
+Now we plug the estimated effect into this formula to find the power of the test $(\bar{\beta} = \hat{\beta})$, for a level of significance of 95% and the same standard error:
+
+\begin{equation}
+\bar{\beta} = \left(t_{\frac{\alpha}{2}}+t_{1-\kappa}\right)\sigma_{\hat{\beta}} \implies t_{1-\kappa} = \frac{\hat{\beta}}{\hat{\sigma}_{\hat{\beta}}} - t_{\frac{\alpha}{2}}
+\end{equation}
+
+We find that:
 
 ```{r}
-t_kappa_c_plugged <- reg1$coefficients[1]/reg1$std.error[1] - t_alpha
+t_kappa_c_plugged <- reg1$coefficients[1]/reg1$std.error[1] - t_alpha_2
 
 pnorm(q = t_kappa_c_plugged)
 ```
+
 So the test had a power of approximately ``r paste0(round(pnorm(q = t_kappa_c_plugged),3)*100,"%")``, which is pretty high. So the test had adequate power.
 
 ## Satisfaction (workers' parameter)
@@ -207,19 +214,19 @@ summary(reg2)
 Again we are able to replicate the results. Since the code is analogous, I will simply paste it and make the appropriate changes:
 
 ```{r}
-alpha <- 0.975
+alpha_2 <- 0.975
 kappa <- 0.80
 
-t_alpha <- qnorm(p = alpha)
-t_kappa_c <- qnorm(p = 1-kappa, lower.tail=F)
+t_alpha_2 <- qnorm(p = alpha_2)
+t_kappa_c <- qnorm(p = kappa)
 
-(mde2 = (t_alpha + t_kappa_c)*reg2$std.error[1])
+(mde2 = (t_alpha_2 + t_kappa_c)*reg2$std.error[1])
 ```
 
 So the minimum detectable effect for the performance parameter is ``r mde2``. This time, the estimated effect is just under the MDE. This means that the desired power or the significance level are too high. However, we know it is not the significance level, since the p-value is ``r round(reg2$p.value[1],3)``, which means we reject the null hypothesis at the 5% level for bicaudal test. So the test must have a power smaller than 80%. Indeed, plugging the estimated effect in the MDE formula, we find that:
 
 ```{r}
-t_kappa_c_plugged <- reg2$coefficients[1]/reg2$std.error[1] - t_alpha
+t_kappa_c_plugged <- reg2$coefficients[1]/reg2$std.error[1] - t_alpha_2
 
 pnorm(q = t_kappa_c_plugged)
 
@@ -242,9 +249,13 @@ Our estimator and t-statistic are, respectively:
 
 To calculate randomization inference p-values, we treat our potential outcomes as non-stochastic and assume a sharp null: $H_0: Y_i(1) = Y_i(0), \forall i$. Under this sharp null, we are able to derive the exact distribution of $t(T,Y)$. For all possible assignments $\tilde{T}$, we calculate $t(\tilde{T},Y)$ and check the proportion of $t(\tilde{T},Y)$ that is greater (in absolute value) than $t(\tilde{T},Y)$.
 
-However, for this to work, we need to know the random allocation mechanism. The randomization was performed accordingly to the worker's birthdates: workers with even birthdates were assigned to work from home. This way, I will assume that the allocation mechanism follows a binomial distribution with parameter equal to the ratio between treated and control individuals.
+However, for this to work, we need to know the random allocation mechanism. The randomization was performed accordingly to the worker's birth dates: workers with even birth dates were assigned to work from home. This way, I will assume that the allocation mechanism follows a binomial distribution with parameter equal to the ratio between treated and control individuals, which is ``131/249 = 0.526``, which is very close to ``0.5``.
 
-In practice, I will permutate the values of ``performance$treatment`` using ``rbinom`` and save the new values in ``tilde_T``, then estimate a new regression for each permutation, and save each new t-statistic. I will perform ``P = 10^4`` permutations. Note that since the independent variable is actually ``experiment_treatment`` instead of ``treatment``, I will first create a ``experiment`` variable, which takes value ``1`` only after the treatment started, that is, if ``year_week >= 201050``, and then create the ``experiment_treatment_T`` variable, that will be the independent variable in the regression. I do this in the ugly ``for`` loop below, which will possibly burn my laptop's CPU irredeemably:
+In practice, I will permutate the values of ``performance$treatment`` using ``rbinom`` and save the new values in ``tilde_T``, then estimate a new regression for each permutation, and save each new t-statistic. I will perform ``P = 10^4`` permutations. Note that since the independent variable is actually ``experiment_treatment`` instead of ``treatment``, I will first create a ``experiment`` variable, which takes value ``1`` only after the treatment started, that is, if ``year_week >= 201050``, and then create the ``experiment_treatment_T`` variable, that will be the independent variable in the regression. This is only necessary because of how the ``performance`` dataframe is constructed: if it didn't include values of outcomes from before the treatment started, we could simply use ``tilde_T`` as regressor.
+
+Also, we have to consider that an individual who, in a certain allocation $\tilde{T}$, receives in the week $t = 1$, a treatment status $T_i = 1$, should have a treatment status of $T_i=1$ for all subsequent weeks. That is, we cannot simply randomize the whole ``performance$treatment`` column without considering the clusters of individuals. For each individual $i$, we should have (for individuals who have not suffered attrition) a total of 85 rows. All of these rows should receive the same randomized value of ``treatment`` (and therefore of ``experiment_treatment_T``). The best solution is simply to group the dataframe per individual, using ``dplyr::group_by(personid)``. Since the grouping makes the dataframe behave in such a way that each cluster is a separate dataframe, and because ``rbinom`` is a vectorized function, we use as argument ``n = 1``. If the we had no clusters, then we wouldn't group the dataframe, and the number of number of observations would be the number of individuals.
+
+I do this in the ugly ``for`` loop below, which will possibly burn my laptop's CPU irredeemably:
 
 ```{r eval=FALSE, include=TRUE}
 P <- 10^4
@@ -253,15 +264,13 @@ P <- 10^4
 tstat_ri <- c()
 beta_ri <- c()
 
-# Still out of the loop, I filter performance and select only the most relevant variables to make the loop as bit faster. I wont change a thing though. I also create the experiment variable (surprisingly it didnt existed in the original dataframe)
+# Still out of the loop, I create the experiment variable (surprisingly it didnt existed in the original dataframe). This step wouldnt be necessary if the data didnt include values from before the treeatment started. I didn't have to do this in the first regression saved in the reg1 object because I used the experiment_treatment variable.
 performance_ri <- performance %>%
-  dplyr::filter((!year_week %in% c(201049) & expgroup %in% c(0,1))) %>%
-  select(personid, perform1, treatment, year_week) %>%
-  mutate(
+  dplyr::mutate(
     experiment = ifelse(year_week >= 201050, 1, 0)
   )
 
-# Now for the proper loop. It runs through every value between 1 and P. Each value of i = {1,2,...,1000} is the i-th step of the iteration but also the i-th position of the tstat_ri list that will receive each of the t-statistics
+# Now for the proper loop. It runs through every value between 1 and P. Each value of i = {1,2,...,10000} is the i-th step of the iteration but also the i-th position of the tstat_ri list that will receive each of the t-statistics
 for(i in 1:P){
   
 # I do this to have some idea of how long this is gonna take. It prints every i that is divisible by 100 and the time when the printing occurred. Printing all i would require a lot of memory
@@ -271,12 +280,12 @@ for(i in 1:P){
   
 # Here I do the actual permutations using rbinom and create a new tilde_T variable. In each iteration, rbinom() runs again and creates a whole new vector of zeros and ones that will be stored in tilde_T, which is the column that takes the values of the treatment T_i. Then I create experiment_treatment_T. Also, note that the same person i must have the same value of tilde_T for every value of year_week, that is, if the individual is treated in the first week, they she must be treated in all weeks, and vice-versa. To do this, I first group the dataframe by personid and then use n=1 in the rbinom
 performance_ri <- performance_ri %>%
-  group_by(personid) %>%
+  dplyr::group_by(personid) %>% # Groups the dataframe since we have clusters
   dplyr::mutate(
-    tilde_T = rbinom(n = 1, size = 1, prob = 131/249),
-    experiment_treatment_T = experiment*tilde_T
+    tilde_T = rbinom(n = 1, size = 1, prob = 131/249), # tilde_T receives a new vector of zeros and ones. n = 1 since the dataframe is grouped at the individual level, size = 1 because we want a bernoulli trial (0 or 1) and prob is the parameter of the binomial
+    experiment_treatment_T = experiment*tilde_T # Creates the experiment_treatment_T variable
   ) %>%
-  ungroup()
+  dplyr::ungroup() # Ungroups the dataframe
 
 # Now I estimate the regression.
 reg1_ri <- performance_ri %>%
@@ -291,9 +300,7 @@ beta_ri[i] <- reg1_ri$coefficients[1]
   
 }
 
-# Remember we need to take absolute values
-tstat_ri <- abs(tstat_ri)
-beta_ri <- abs(beta_ri)
+# And we are done!
 ```
 
 
@@ -303,50 +310,76 @@ load("beta_ri_10.Rdata")
 ```
 
 
-With all $t(\tilde{T},Y)$ stored in ``tstat_ri`` and ``beta_ri``, we can calculate the proportion of these statistics that are larger than ``r reg1_tstat`` and ``r reg1_estimator``, respectively:
+With all $t(\tilde{T},Y)$ stored in ``tstat_ri`` and ``beta_ri``, we can calculate the proportion of these statistics that are larger than ``r reg1_tstat`` and ``r reg1_estimator``, respectively (remember we need to take absolute values, that is, we use ``abs()``):
 
 ```{r}
-sum(tstat_ri > reg1_tstat)/10^4
-sum(beta_ri > reg1_estimator)/10^4
+sum(abs(tstat_ri) > abs(reg1_tstat))/10^4
+sum(abs(beta_ri) > abs(reg1_estimator))/10^4
 ```
 
-The p-values obtained through permutation tests of the t-statistic $t = \frac{\hat{\beta}}{se(\hat{\beta})}$ and the estimator $\hat{\beta}$ are identical and equal to ``sum(tstat_ri > reg1_tstat)/P``.
+The p-values obtained through permutation tests of the t-statistic $t = \frac{\hat{\beta}}{se(\hat{\beta})}$ and the estimator $\hat{\beta}$ are identical and equal to ``r format(sum(abs(tstat_ri) > abs(reg1_tstat))/10^4, scientific = F)``. These values are neglibly smaller than the p-value based on the asymptotic distribution of the estimator, ``r format(reg1$p.value[1], scientific = F)``.
 
-```{r include=FALSE}
-load("tstat_ri.Rdata")
-```
-
-The graphs below plot the density of the values obtained through the permutation tests and the value observed in the actual sample. Please note these are absolute values.
+The graphs below plot the density of the values obtained through the permutation tests and the value observed in the actual sample.
 
 ```{r}
 
 ggplot() + 
   geom_density(mapping = aes(x = tstat_ri), fill = "grey") + 
   geom_vline(aes(xintercept = reg1$statistic[1]), color = "red") +
-  geom_text(aes(x = reg1$statistic[1]+0.1), label = "Observed value", y = 0.15, angle = 90, vjust = -0.2) +
+  geom_text(aes(x = reg1$statistic[1]+0.2), label = "Observed value", y = 0.05, angle = 90, vjust = -0.2) +
   labs(title = "Density of simulated t-statistics and observed value",x = "Values", y = "Density") +
   theme_bw(base_size = 10)
 
 ggplot() + 
   geom_density(mapping = aes(x = beta_ri), fill = "grey") + 
   geom_vline(aes(xintercept = reg1$coefficients[1]), color = "red") +
-  geom_text(aes(x = reg1$coefficients[1]+0.006), label = "Observed value", y = 2, angle = 90, vjust = -0.2) +
+  geom_text(aes(x = reg1$coefficients[1]+0.01), label = "Observed value", y = 1, angle = 90, vjust = -0.2) +
   labs(title = "Density of simulated estimators and observed value", x = "Values", y = "Density") +
   theme_bw(base_size = 10)
 ```
 
 
-**Remark 3:** I also executed a for loop with ``P = 10^5`` permutations (the code took 4 hours to run), but only for the t-statistic (I got the question wrong, which I only realized after the aforementioned 4 hours). The calculated p-value was ``r as.double(sum(tstat_ri > reg1_tstat)/10^5)``. Note that the original p-value is ``r as.double(reg1$p.value[1]/10^5)``. These values are nearly identical, but I don't know what to make of this.
+```{r include=FALSE}
+load("tstat_ri.Rdata")
+```
+
+
+**Remark 2:** I also executed a for loop with ``P = 10^5`` permutations (the code took 4 hours to run), but only for the t-statistic (I got the question wrong, which I only realized after the aforementioned 4 hours). The calculated p-value was ``r format(sum(abs(tstat_ri) > abs(reg1_tstat))/10^5, scientific = F)``. Note that the p-value base on the asymptotic distribution is ``r format(reg1$p.value[1], scientific = F)``. These values are nearly identical, but I don't know what to make of this.
+
+In general, the randomization inference p-values calculated using $\hat{\beta}$ and $t = \frac{\hat{\beta}}{se(\hat{\beta})}$ might be different because they are different statistics (Otávio?). These p-values can differ from p-values based on the asymptotic distribution of the estimator because of bad or imprecise asymptotic approximations.
 
 # Discuss potential problems in the experiment.  Discuss how you would be able to check whether these problems are relevant (for example, by looking at the available data or by collecting more data), or how the experiment could have been done differently to avoid such problems. Be clear about whether the potential problems you raised were discussed in the paper.
 
-## Implications of the oversubscription method
+## Selection bias
+
+As mentioned in question 1, the workers were previously surveyed by the firm, which assessed their qualifications and interest in joining the programs. One could argue that, in spirit, the research design had an oversubscription method. The firm was not interested in experimenting with the whole staff, so there was limited implementation capacity and the demand for the program exceeded supply. This clearly induced a selection bias in the experiment, since the design of the experiment was selected from a sample that was already interested in the program to begin with and which met the requirements.
+
+Indeed, the authors report that those who volunteered for the program tended to have longer commuting time, less tenure in the firm, and be less educated. By meeting the requirements, they also had a tenure of at least six months, broadband access to the Internet, and an independent workspace. This is a potential problem because it may raise concerns of external validity. Also, the average treatment effect for the treatment is different than the average treatment effect, since those workers who volunteered for the program are probably those who can benefit more from it.
+
+One could check if this problem is relevant by comparing the workers who participated to the rest of the population. The problem here is which population we are interested in. Arguably, if the population of interest is workers in general, the fact that the experiment was conducted on telemarketing workers already implies problems of external validity. As the authors themselves mention, the job of a call center is particularly suitable for WFH, as is IT support, secretarial assistance etc. This is not true for every kind of workers, and WFH may be specially unsuitable for certain workers, as the pandemic has shown. Still, problems of external validity may arise in any research design, specially one that investigated the effects of WFH. The authors recognize all of these issues.
+
+It's hard to tell how the experiment could have been done differently to avoid this particular problem. The experiment was only possible to begin with because one of the authors, James Liang, is the former CEO of the company, a former Standford student and professor of Applied Economics. The firm was eager to experiment with WFH but concerned with its impacts. If the experiment had to be performed differently, it could not have been performed at all.
 
 ## Imperfect compliance
 
+The design counted with imperfect compliance. The firm's policy obliged the workers who receive a certain treatment status to continue in their designed location of work for the whole duration of experiment, but some workers who were working from home managed to go back to the office. In Figure V, it's possible to see that the share of employees working from home was not constant during the experiment, but fluctuated slightly around 80% to 90%.
+
+The authors then perform the estimation using the birthdate status as treatment status which allows them to estimate the intention-to-treat (ITT) effect, which can be interpreted as the causal effect of being offered treatment. However, given the design of the experiment, I believe it would be more interesting to estimate the LATE. After all, the objective is to estimate how the change in the location of work, and working far from supervision, can affect performance. I am not sure if the authors didn't have access to the information of who defied treatment status.
+
+To check if this problem is relevant, we could look at the proportion of workers who changed the location of work. The authors show this information in Figure V. Since the proportion of workers who changed is small and -- apparently -- every changed was made from WFH to the office, and since the authors decide to estimate the ITT, I believe that it's unlikely that this problem is relevant.
+
+Again, once the policy of the firm was not to allow these changes, but they still happened, then there isn't much else that could be done about the research design to avoid them.
+
 ## Hawthorne and Gift-Exchange Effects
+
+The authors consider the possibility of Hawthorne and Gift-Exchange effects, which could bias the performance estimator and the satisfaction estimator upwards, respectively. They offer several arguments to convince that the Hwthorne effect is not relevant. First: since each employee have low impact on the overall evaluation, they would have little incentive to try to manipulate it. However, this assumes that the employees know that they are not pivotal, which is not always the case. If a large number of employees actually behave differently because they think it would make a difference, it could actually make a difference. Second: those employees who changed their minds and returned to the office performed no worse in the end of the treatment, in comparison to the beginning, suggesting that the reduced incentive to make the experiment succeed had no significant impact in their performance. However,if those employees ended up changing their minds, perhaps they were not so eager to work harder in home in the first place. The strongest evidence in the authors favor is that, once the experiment ended, the gap in performance between office-based and home-bases employees widened.
+
+For the Gift-Exchange effect, the authors argue that the "gift" (being allowed to work from home) was randomly allocated, workers wouldn't feel so grateful towards the firm in such a way to change their behavior. Still, in the post-experiment survey, the question "How did working from home improve your performance?" received as the fourth most common answer "Feeling more positive towards Ctrip for allowing me to work from home", with 12% of the responses. The authors then argue that Gift-Exchanged was only a secondary driver of the main effect. In this case, the post-experiment survey is a way of collecting data to check if the Gift-Exchange effect is relevant, but it has problems since it was collected after the treatment.
 
 ## Attrition
 
-## Negative difference in performance compared to baseline
+The authors document attrition rates of 17% in the treatment group and 35% in the control group. It's relevant to say that attrition itself is a parameter of interest, since it was expected that WFH reduced attrition rates.
 
+To test for selective attrition, the authors estimate probit models in which the dependent variable is whether the worker attrited or not. Not surprisingly, low performance workers were more likely to quit their jobs in both the control and treatment group. Also, by estimating the effect of performance on probability of attrition in separate samples, the authors finds that the low performance workers who worked from home were much less likely to quit, even though they still did.
+
+This would cause the performance estimator to be biased downwards. Since more low performance workers in the control group leave in comparison to the treatment group, $Y_i(0)$ increases more than $Y_i(1)$ increases. Assuming monotonicity, the authors estimate Lee bounds. The upper bound assumes that the workers with lowest performance of the treatment group would quit in such a way to create an equal attrition rate. The lower bound is analogous. The upper bound suggests that the effect is up to 50% larger than the estimated, but the lower bound is negative.

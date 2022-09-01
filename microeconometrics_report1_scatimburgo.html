@@ -418,6 +418,8 @@ problems you raised were discussed in the paper.</a>
 <li><a href="#hawthorne-and-gift-exchange-effects" id="toc-hawthorne-and-gift-exchange-effects"><span class="toc-section-number">5.3</span> Hawthorne and Gift-Exchange
 Effects</a></li>
 <li><a href="#attrition" id="toc-attrition"><span class="toc-section-number">5.4</span> Attrition</a></li>
+<li><a href="#negative-difference-in-performance-compared-to-baseline" id="toc-negative-difference-in-performance-compared-to-baseline"><span class="toc-section-number">5.5</span> Negative difference in performance
+compared to baseline</a></li>
 </ul></li>
 </ul>
 </div>
@@ -1087,79 +1089,19 @@ but some workers who were working from home managed to go back to the
 office. In Figure V, it’s possible to see that the share of employees
 working from home was not constant during the experiment, but fluctuated
 slightly around 80% to 90%.</p>
-<p>The authors then perform the estimation using the birthdate status as
-treatment status which allows them to estimate the intention-to-treat
-(ITT) effect, which can be interpreted as the causal effect of being
-offered treatment. However, given the design of the experiment, I
-believe it would be more interesting to estimate the LATE. After all,
-the objective is to estimate how the change in the location of work, and
-working far from supervision, can affect performance. I am not sure if
-the authors didn’t have access to the information of who defied
-treatment status.</p>
-<p>To check if this problem is relevant, we could look at the proportion
-of workers who changed the location of work. The authors show this
-information in Figure V. Since the proportion of workers who changed is
-small and – apparently – every changed was made from WFH to the office,
-and since the authors decide to estimate the ITT, I believe that it’s
-unlikely that this problem is relevant.</p>
-<p>Again, once the policy of the firm was not to allow these changes,
-but they still happened, then there isn’t much else that could be done
-about the research design to avoid them.</p>
+<p>The authors were able to observe in the data the individuals who
+defied treatment status. They perform estimations</p>
 </div>
 <div id="hawthorne-and-gift-exchange-effects" class="section level2" number="5.3">
 <h2><span class="header-section-number">5.3</span> Hawthorne and
 Gift-Exchange Effects</h2>
-<p>The authors consider the possibility of Hawthorne and Gift-Exchange
-effects, which could bias the performance estimator and the satisfaction
-estimator upwards, respectively. They offer several arguments to
-convince that the Hwthorne effect is not relevant. First: since each
-employee have low impact on the overall evaluation, they would have
-little incentive to try to manipulate it. However, this assumes that the
-employees know that they are not pivotal, which is not always the case.
-If a large number of employees actually behave differently because they
-think it would make a difference, it could actually make a difference.
-Second: those employees who changed their minds and returned to the
-office performed no worse in the end of the treatment, in comparison to
-the beginning, suggesting that the reduced incentive to make the
-experiment succeed had no significant impact in their performance.
-However,if those employees ended up changing their minds, perhaps they
-were not so eager to work harder in home in the first place. The
-strongest evidence in the authors favor is that, once the experiment
-ended, the gap in performance between office-based and home-bases
-employees widened.</p>
-<p>For the Gift-Exchange effect, the authors argue that the “gift”
-(being allowed to work from home) was randomly allocated, workers
-wouldn’t feel so grateful towards the firm in such a way to change their
-behavior. Still, in the post-experiment survey, the question “How did
-working from home improve your performance?” received as the fourth most
-common answer “Feeling more positive towards Ctrip for allowing me to
-work from home”, with 12% of the responses. The authors then argue that
-Gift-Exchanged was only a secondary driver of the main effect. In this
-case, the post-experiment survey is a way of collecting data to check if
-the Gift-Exchange effect is relevant, but it has problems since it was
-collected after the treatment.</p>
 </div>
 <div id="attrition" class="section level2" number="5.4">
 <h2><span class="header-section-number">5.4</span> Attrition</h2>
-<p>The authors document attrition rates of 17% in the treatment group
-and 35% in the control group. It’s relevant to say that attrition itself
-is a parameter of interest, since it was expected that WFH reduced
-attrition rates.</p>
-<p>To test for selective attrition, the authors estimate probit models
-in which the dependent variable is whether the worker attrited or not.
-Not surprisingly, low performance workers were more likely to quit their
-jobs in both the control and treatment group. Also, by estimating the
-effect of performance on probability of attrition in separate samples,
-the authors finds that the low performance workers who worked from home
-were much less likely to quit, even though they still did.</p>
-<p>This would cause the performance estimator to be biased downwards.
-Since more low performance workers in the control group leave in
-comparison to the treatment group, <span class="math inline">\(Y_i(0)\)</span> increases more than <span class="math inline">\(Y_i(1)\)</span> increases. Assuming monotonicity,
-the authors estimate Lee bounds. The upper bound assumes that the
-workers with lowest performance of the treatment group would quit in
-such a way to create an equal attrition rate. The lower bound is
-analogous. The upper bound suggests that the effect is up to 50% larger
-than the estimated, but the lower bound is negative.</p>
+</div>
+<div id="negative-difference-in-performance-compared-to-baseline" class="section level2" number="5.5">
+<h2><span class="header-section-number">5.5</span> Negative difference
+in performance compared to baseline</h2>
 </div>
 </div>
 
