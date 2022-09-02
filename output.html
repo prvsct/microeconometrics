@@ -11,7 +11,7 @@
 
 <meta name="author" content="Pedro Scatimburgo" />
 
-<meta name="date" content="2022-08-31" />
+<meta name="date" content="2022-09-02" />
 
 <title>Microeconometrics Report I: Does Working from Home Work? Evidence from a Chinese Experiment¹</title>
 
@@ -378,7 +378,7 @@ pre code {
 <h1 class="title toc-ignore">Microeconometrics Report I: <em>Does
 Working from Home Work? Evidence from a Chinese Experiment¹</em></h1>
 <h4 class="author">Pedro Scatimburgo</h4>
-<h4 class="date">31 August 2022</h4>
+<h4 class="date">02 September 2022</h4>
 
 </div>
 
@@ -460,7 +460,9 @@ to data.</a></em></p>
 <code>tidyverse</code> is the core of all the data wrangling.
 <code>haven</code> is used only for importing <code>.dta</code> files.
 <code>estimatr</code> performs robust estimations, including
-implementations for clusters and fixed effects.</p>
+implementations for clusters and fixed effects. You also have to
+download the data from the link above and save the <code>wfh</code>
+folder in your working directory.</p>
 <pre class="r"><code>install.packages(&quot;tidyverse&quot;)
 install.packages(&quot;haven&quot;)
 install.packages(&quot;estimatr&quot;)
@@ -522,9 +524,12 @@ qualifications for the program required that workers had a tenure of at
 least six months, broadband access to the Internet, and an independent
 workspace. Among the volunteers, 249 (50%) met the requirements and were
 recruited. A public lottery based on birthdates then assigned workers
-for the treatment and control groups. The research design involved
-problems of selection bias, attrition and imperfect compliance which
-will be discussed in question 5.</p>
+for the treatment and control groups. The experiment was then conducted
+for 85 weeks. For the duration of the experiment, the workers had
+several measures of performance tracked. The firm also conducted 5
+surveys to measure the workers’ satisfaction with their jobs. The
+research design involved problems of selection bias, attrition and
+imperfect compliance which will be discussed in question 5.</p>
 </div>
 <div id="what-is-the-minimum-detectable-effect-for-the-main-parameter-of-interest-did-the-study-have-adequate-power-you-can-use-the-authors-data-to-answer-this-question" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> What is the minimum
@@ -537,23 +542,24 @@ overall performance and satisfaction.</p>
 <div id="some-preliminary-data-analysis" class="section level2" number="3.1">
 <h2><span class="header-section-number">3.1</span> Some preliminary data
 analysis</h2>
-<p>First, I will load the files uploaded in the Nicholas Bloom’s
-personal page. It will import 22 files, one for each of the analysis
-conducted by the authors. I will use only two dataframes:
+<p>First, I will load the files uploaded to Nicholas Bloom’s page. It
+will import 22 files, one for each of the analyses conducted by the
+authors. I will use only two dataframes:
 <code>wfh/data/performance_during_exper.dta</code> and
 <code>wfh/data/satisfaction.dta</code>, which I will save on objects
-<code>perormance</code> and <code>satisfaction</code>. These dataframes
+<code>performance</code> and <code>satisfaction</code>. These dataframes
 contain values for several variables, including overall performance,
 <code>perform1</code>, and satisfaction, <code>satisfaction</code>. I
-will select only the variables relevant for the estimations I will
+will select only the variables relevant to the estimations I will
 conduct here. Also, as we will see below, we have to filter some
 individuals from the <code>performance</code> dataframe to include only
 the 249 individuals who were part of the experiment, since it also
 contains data about individuals in other firms that were used for
 robustness tests.</p>
 <pre class="r"><code>files &lt;- fs::dir_ls(&quot;wfh/data&quot;) %&gt;%
-  purrr::map(haven::read_dta)
+  purrr::map(haven::read_dta) # Reads all files in the wfh/data folder and import them all into the files object. purrr::map creates a list
 
+# We are interested only in the performance and satisfaction dataframes. I keep the other dataframes in case I might need them
 performance &lt;- files[[&quot;wfh/data/performance_during_exper.dta&quot;]]
 satisfaction &lt;- files[[&quot;wfh/data/satisfaction.dta&quot;]]</code></pre>
 <pre class="r"><code>performance &lt;- performance %&gt;%
@@ -671,12 +677,11 @@ knitr::kable(head(satisfaction))</code></pre>
 <p>Now let’s see if the data makes sense. The experiment was conducted
 for 85 weeks. There are 249 observations: 131 in the treatment group and
 118 in the control group. The <code>performance</code> dataframe
-includes not only the individuals that participated in the experiment,
+includes not only the individuals that participated in the experiment
 but also individuals from other branches (which the authors use for some
 of the analysis). The <code>satisfaction</code> dataframe should also
-contain 249 individuals, who were surveyed for five times. So let’s
-filter the <code>performance</code> dataframe and check these
-numbers:</p>
+contain 249 individuals, who were surveyed five times. So let’s filter
+the <code>performance</code> dataframe and check these numbers:</p>
 <pre class="r"><code>performance %&gt;%
   dplyr::summarise( # summarise is a function that summarises data for a lack of better way to explain
     total_individuals = length(unique(personid)), # How many unique individuals are there in the dataframe?
@@ -699,10 +704,9 @@ numbers:</p>
 85 weeks, as expected. The <code>satisfaction</code> dataframe contains
 5 surveys, but only 171 individuals. I could not figure out why the
 number of individuals is not 249. The authors don’t mention anything
-about this in the paper or in the online appendix. Still, 855 is the
-number of observations reported by the authors in the satisfaction
-regression, and as we will see, we can replicate the authors’ results
-exactly.</p>
+about this in the paper or the online appendix. Still, 855 is the number
+of observations reported by the authors in the satisfaction regression,
+and as we will see, we can replicate the authors’ results exactly.</p>
 </div>
 <div id="overall-performance-firms-parameter" class="section level2" number="3.2">
 <h2><span class="header-section-number">3.2</span> Overall performance
@@ -731,7 +735,7 @@ results of the regression in the <code>reg1</code> object. In R, using
 authors’ results; <a href="https://declaredesign.org/r/estimatr/articles/mathematical-notes.html" title="Who still uses Stata though?">click here for a discussion on the
 possible values for this argument</a>):</p>
 <pre class="r"><code>reg1 &lt;- performance %&gt;%
-  estimatr::lm_robust(formula = perform1 ~ experiment_treatment, # This is how to write regression formulas in R. perform1 is regressed against experiment_treatment
+  estimatr::lm_robust(formula = perform1 ~ experiment_treatment, # perform1 is regressed against experiment_treatment
                       clusters = personid, # Clusters in personid, which is the individual
                       fixed_effects = ~personid + year_week, # Fixed effects for both the individual and the week
                       se_type = &quot;stata&quot;) # We use Stata standard errors
@@ -754,7 +758,7 @@ summary(reg1) # Prints the results</code></pre>
 ## Multiple R-squared:  0.4018 ,    Adjusted R-squared:  0.3904
 ## Multiple R-squared (proj. model):  0.005065 ,    Adjusted R-squared (proj. model):  -0.0139 
 ## F-statistic (proj. model): 13.69 on 1 and 248 DF,  p-value: 0.0002651</code></pre>
-<p>Which give us a estimate of <code>0.2323594</code>, a standard error
+<p>This gives us an estimate of <code>0.2323594</code>, a standard error
 of <code>0.0627917</code>. The authors report values of 0.232 and 0.063,
 respectively. We did it!</p>
 <p>To find the minimum detectable effect for performance I will use the
@@ -764,13 +768,13 @@ following formula:</p>
 \left(t_{\frac{\alpha}{2}}+t_{1-\kappa}\right)\sigma_{\hat{\beta}}
 \end{equation}\]</span></p>
 <p>Where <span class="math inline">\(\bar{\beta}\)</span> is the minimum
-detectable effect (MDE) given a statistical significance level of <span class="math inline">\(\alpha\)</span> and a power of <span class="math inline">\(\kappa\)</span>. Following what we did in class, I
+detectable effect (MDE) given a statistical significance level of <span class="math inline">\(\alpha\)</span> and power of <span class="math inline">\(\kappa\)</span>. Following what we did in class, I
 will use a significance level of 95% and a power of 80% in a bicaudal
 test, that is: <code>alpha_2 = 0.975</code> and
 <code>kappa = 0.80</code>. <span class="math inline">\(\sigma_{\hat{\beta}}\)</span> is the standard
 deviation of the estimator. We can use its estimator, <span class="math inline">\(\hat{\sigma}_{\hat{\beta}}\)</span>, which
 <code>lm_robust</code> already gave to us as the standard error of the
-estimator in the object <code>reg1$std.error[1</code>. Then, assuming
+estimator in the object <code>reg1$std.error[1]</code>. Then, assuming
 normality, the minimum detectable effect for this parameter is:</p>
 <pre class="r"><code>alpha_2 &lt;- 0.975 # 2,5% for each side (bicaudal)
 kappa &lt;- 0.80
@@ -784,8 +788,8 @@ t_kappa_c &lt;- qnorm(p = kappa) # We use kappa instead of 1-kappa because by de
 <p>So the minimum detectable effect for the performance parameter is
 <code>0.1759164</code>. Recall that this variable is normalized, so the
 minimum detectable effect is approximately <code>0.176</code> standard
-deviation. This seems like a very reasonable value for a MDE, specially
-considering that the estimated effect is approximately
+deviation. This seems like a very reasonable value for an MDE,
+especially considering that the estimated effect is approximately
 <code>0.232</code> standard deviation.</p>
 <p>Now we plug the estimated effect into this formula to find the power
 of the test <span class="math inline">\((\bar{\beta} =
@@ -854,12 +858,12 @@ t_kappa_c &lt;- qnorm(p = kappa)
 ##           0.163395</code></pre>
 <p>So the minimum detectable effect for the performance parameter is
 <code>0.163395</code>. This time, the estimated effect is just under the
-MDE. This means that the desired power or the significance level are too
-high. However, we know it is not the significance level, since the
-p-value is <code>0.009</code>, which means we reject the null hypothesis
-at the 5% level for bicaudal test. So the test must have a power smaller
-than 80%. Indeed, plugging the estimated effect in the MDE formula, we
-find that:</p>
+MDE. This means that either the desired power or the significance level
+is too high. However, we know it is not the significance level, since
+the p-value is <code>0.009</code>, which means we reject the null
+hypothesis at the 5% level for the bicaudal test. So the test must have
+a power smaller than 80%. Indeed, plugging the estimated effect in the
+MDE formula, we find that:</p>
 <pre class="r"><code>t_kappa_c_plugged &lt;- reg2$coefficients[1]/reg2$std.error[1] - t_alpha_2
 
 pnorm(q = t_kappa_c_plugged)</code></pre>
@@ -895,7 +899,7 @@ which allowed me to create a <code>experiment</code> variable using
 ##             3.700477</code></pre>
 <p>To calculate randomization inference p-values, we treat our potential
 outcomes as non-stochastic and assume a sharp null: <span class="math inline">\(H_0: Y_i(1) = Y_i(0), \forall i\)</span>. Under
-this sharp null, we are able to derive the exact distribution of <span class="math inline">\(t(T,Y)\)</span>. For all possible assignments
+this sharp null, we can derive the exact distribution of <span class="math inline">\(t(T,Y)\)</span>. For all possible assignments
 <span class="math inline">\(\tilde{T}\)</span>, we calculate <span class="math inline">\(t(\tilde{T},Y)\)</span> and check the proportion
 of <span class="math inline">\(t(\tilde{T},Y)\)</span> that is greater
 (in absolute value) than <span class="math inline">\(t(\tilde{T},Y)\)</span>.</p>
@@ -903,9 +907,9 @@ of <span class="math inline">\(t(\tilde{T},Y)\)</span> that is greater
 mechanism. The randomization was performed accordingly to the worker’s
 birth dates: workers with even birth dates were assigned to work from
 home. This way, I will assume that the allocation mechanism follows a
-binomial distribution with parameter equal to the ratio between treated
-and control individuals, which is <code>131/249 = 0.526</code>, which is
-very close to <code>0.5</code>.</p>
+binomial distribution with a parameter equal to the ratio between
+treated and control individuals, which is <code>131/249 = 0.526</code>,
+which is very close to <code>0.5</code>.</p>
 <p>In practice, I will permutate the values of
 <code>performance$treatment</code> using <code>rbinom</code> and save
 the new values in <code>tilde_T</code>, then estimate a new regression
@@ -913,13 +917,13 @@ for each permutation, and save each new t-statistic. I will perform
 <code>P = 10^4</code> permutations. Note that since the independent
 variable is actually <code>experiment_treatment</code> instead of
 <code>treatment</code>, I will first create a <code>experiment</code>
-variable, which takes value <code>1</code> only after the treatment
-started, that is, if <code>year_week &gt;= 201050</code>, and then
+variable, which takes value <code>1</code> only after the beginning of
+the treatment, that is, if <code>year_week &gt;= 201050</code>, and then
 create the <code>experiment_treatment_T</code> variable, that will be
 the independent variable in the regression. This is only necessary
 because of how the <code>performance</code> dataframe is constructed: if
 it didn’t include values of outcomes from before the treatment started,
-we could simply use <code>tilde_T</code> as regressor.</p>
+we could simply use <code>tilde_T</code> as a regressor.</p>
 <p>Also, we have to consider that an individual who, in a certain
 allocation <span class="math inline">\(\tilde{T}\)</span>, receives in
 the week <span class="math inline">\(t = 1\)</span>, a treatment status
@@ -935,14 +939,14 @@ simply to group the dataframe per individual, using
 <code>dplyr::group_by(personid)</code>. Since the grouping makes the
 dataframe behave in such a way that each cluster is a separate
 dataframe, and because <code>rbinom</code> is a vectorized function, we
-use as argument <code>n = 1</code>. If the we had no clusters, then we
-wouldn’t group the dataframe, and the number of number of observations
-would be the number of individuals.</p>
+use as argument <code>n = 1</code>. If we had no clusters, then we
+wouldn’t group the dataframe, and the number of observations
+<code>n</code> would be the number of individuals.</p>
 <p>I do this in the ugly <code>for</code> loop below, which will
 possibly burn my laptop’s CPU irredeemably:</p>
 <pre class="r"><code>P &lt;- 10^4
 
-# Creates a vector that will receive each t-statistic and each beta. It&#39;s an empty vector, which means it doesnt have a size yet. Therefore it can receive any number of elements.
+# Creates the vectors that will receive each t-statistic and each beta. They are empty vectors, which means they dont have a size yet. Therefore they can receive any number of elements.
 tstat_ri &lt;- c()
 beta_ri &lt;- c()
 
@@ -953,7 +957,8 @@ performance_ri &lt;- performance %&gt;%
   )
 
 # Now for the proper loop. It runs through every value between 1 and P. Each value of i = {1,2,...,10000} is the i-th step of the iteration but also the i-th position of the tstat_ri list that will receive each of the t-statistics
-for(i in 1:P){
+
+for(i in 1:P){# Loop starts here
   
 # I do this to have some idea of how long this is gonna take. It prints every i that is divisible by 100 and the time when the printing occurred. Printing all i would require a lot of memory
   if(i %% 100 == 0){
@@ -980,7 +985,7 @@ reg1_ri &lt;- performance_ri %&gt;%
 tstat_ri[i] &lt;- reg1_ri$statistic[1]
 beta_ri[i] &lt;- reg1_ri$coefficients[1]
   
-}
+# Loop ends here}
 
 # And we are done!</code></pre>
 <p>With all <span class="math inline">\(t(\tilde{T},Y)\)</span> stored
@@ -996,14 +1001,14 @@ proportion of these statistics that are larger than
 <p>The p-values obtained through permutation tests of the t-statistic
 <span class="math inline">\(t =
 \frac{\hat{\beta}}{se(\hat{\beta})}\)</span> and the estimator <span class="math inline">\(\hat{\beta}\)</span> are identical and equal to
-<code>0.0002</code>. These values are neglibly smaller than the p-value
-based on the asymptotic distribution of the estimator,
+<code>0.0002</code>. These values are negligibly smaller than the
+p-value based on the asymptotic distribution of the estimator,
 <code>0.0002651066</code>.</p>
 <p>The graphs below plot the density of the values obtained through the
 permutation tests and the value observed in the actual sample.</p>
 <pre class="r"><code>ggplot() + 
   geom_density(mapping = aes(x = tstat_ri), fill = &quot;grey&quot;) + 
-  geom_vline(aes(xintercept = reg1$statistic[1]), color = &quot;red&quot;) +
+  geom_vline(xintercept = reg1$statistic[1], color = &quot;red&quot;) +
   geom_text(aes(x = reg1$statistic[1]+0.2), label = &quot;Observed value&quot;, y = 0.05, angle = 90, vjust = -0.2) +
   labs(title = &quot;Density of simulated t-statistics and observed value&quot;,x = &quot;Values&quot;, y = &quot;Density&quot;) +
   theme_bw(base_size = 10)</code></pre>
@@ -1020,8 +1025,7 @@ permutation tests and the value observed in the actual sample.</p>
 only for the t-statistic (I got the question wrong, which I only
 realized after the aforementioned 4 hours). The calculated p-value was
 <code>0.00027</code>. Note that the p-value base on the asymptotic
-distribution is <code>0.0002651066</code>. These values are nearly
-identical, but I don’t know what to make of this.</p>
+distribution is <code>0.0002651066</code>.</p>
 <p>In general, the randomization inference p-values calculated using
 <span class="math inline">\(\hat{\beta}\)</span> and <span class="math inline">\(t = \frac{\hat{\beta}}{se(\hat{\beta})}\)</span>
 might be different because they are different statistics (Otávio?).
@@ -1043,8 +1047,8 @@ paper.</h1>
 the firm, which assessed their qualifications and interest in joining
 the programs. One could argue that, in spirit, the research design had
 an oversubscription method. The firm was not interested in experimenting
-with the whole staff, so there was limited implementation capacity and
-the demand for the program exceeded supply. This clearly induced a
+with the whole staff, so there was limited implementation capacity, and
+the demand for the program exceeded the supply. This clearly induced a
 selection bias in the experiment, since the design of the experiment was
 selected from a sample that was already interested in the program to
 begin with and which met the requirements.</p>
@@ -1052,27 +1056,27 @@ begin with and which met the requirements.</p>
 tended to have longer commuting time, less tenure in the firm, and be
 less educated. By meeting the requirements, they also had a tenure of at
 least six months, broadband access to the Internet, and an independent
-workspace. This is a potential problem because it may raise concerns of
-external validity. Also, the average treatment effect for the treatment
-is different than the average treatment effect, since those workers who
-volunteered for the program are probably those who can benefit more from
-it.</p>
+workspace. This is a potential problem because it may raise concerns
+about external validity. Also, the average treatment effect for the
+treatment is different than the average treatment effect, since those
+workers who volunteered for the program are probably those who can
+benefit more from it.</p>
 <p>One could check if this problem is relevant by comparing the workers
 who participated to the rest of the population. The problem here is
 which population we are interested in. Arguably, if the population of
 interest is workers in general, the fact that the experiment was
 conducted on telemarketing workers already implies problems of external
 validity. As the authors themselves mention, the job of a call center is
-particularly suitable for WFH, as is IT support, secretarial assistance
-etc. This is not true for every kind of workers, and WFH may be
-specially unsuitable for certain workers, as the pandemic has shown.
+particularly suitable for WFH, as is IT support, secretarial assistance,
+etc. This is not true for every kind of worker, and WFH may be
+especially unsuitable for certain workers, as the pandemic has shown.
 Still, problems of external validity may arise in any research design,
-specially one that investigated the effects of WFH. The authors
+particularly one that investigated the effects of WFH. The authors
 recognize all of these issues.</p>
 <p>It’s hard to tell how the experiment could have been done differently
 to avoid this particular problem. The experiment was only possible to
 begin with because one of the authors, James Liang, is the former CEO of
-the company, a former Standford student and professor of Applied
+the company, a former Standford student, and a professor of Applied
 Economics. The firm was eager to experiment with WFH but concerned with
 its impacts. If the experiment had to be performed differently, it could
 not have been performed at all.</p>
@@ -1082,11 +1086,11 @@ not have been performed at all.</p>
 compliance</h2>
 <p>The design counted with imperfect compliance. The firm’s policy
 obliged the workers who receive a certain treatment status to continue
-in their designed location of work for the whole duration of experiment,
-but some workers who were working from home managed to go back to the
-office. In Figure V, it’s possible to see that the share of employees
-working from home was not constant during the experiment, but fluctuated
-slightly around 80% to 90%.</p>
+in their designed location of work for the whole duration of the
+experiment, but some workers who were working from home managed to go
+back to the office. In Figure V, it’s possible to see that the share of
+employees working from home was not constant during the experiment, but
+fluctuated slightly around 80% to 90%.</p>
 <p>The authors then perform the estimation using the birthdate status as
 treatment status which allows them to estimate the intention-to-treat
 (ITT) effect, which can be interpreted as the causal effect of being
@@ -1097,9 +1101,9 @@ working far from supervision, can affect performance. I am not sure if
 the authors didn’t have access to the information of who defied
 treatment status.</p>
 <p>To check if this problem is relevant, we could look at the proportion
-of workers who changed the location of work. The authors show this
+of workers who changed their location of work. The authors show this
 information in Figure V. Since the proportion of workers who changed is
-small and – apparently – every changed was made from WFH to the office,
+small and – apparently – every change was made from WFH to the office,
 and since the authors decide to estimate the ITT, I believe that it’s
 unlikely that this problem is relevant.</p>
 <p>Again, once the policy of the firm was not to allow these changes,
@@ -1112,52 +1116,52 @@ Gift-Exchange Effects</h2>
 <p>The authors consider the possibility of Hawthorne and Gift-Exchange
 effects, which could bias the performance estimator and the satisfaction
 estimator upwards, respectively. They offer several arguments to
-convince that the Hwthorne effect is not relevant. First: since each
-employee have low impact on the overall evaluation, they would have
+convince us that the Hawthorne effect is not relevant. First: since each
+employee has a low impact on the overall evaluation, they would have
 little incentive to try to manipulate it. However, this assumes that the
 employees know that they are not pivotal, which is not always the case.
 If a large number of employees actually behave differently because they
 think it would make a difference, it could actually make a difference.
 Second: those employees who changed their minds and returned to the
-office performed no worse in the end of the treatment, in comparison to
+office performed no worse at the end of the treatment, in comparison to
 the beginning, suggesting that the reduced incentive to make the
-experiment succeed had no significant impact in their performance.
-However,if those employees ended up changing their minds, perhaps they
-were not so eager to work harder in home in the first place. The
-strongest evidence in the authors favor is that, once the experiment
-ended, the gap in performance between office-based and home-bases
+experiment succeed had no significant impact on their performance.
+However, if those employees ended up changing their minds, perhaps they
+were not so eager to work harder from home in the first place. The
+strongest evidence in the authors’ favor is that, once the experiment
+ended, the gap in performance between office-based and home-based
 employees widened.</p>
-<p>For the Gift-Exchange effect, the authors argue that the “gift”
+<p>For the Gift-Exchange effect, the authors argue that the since “gift”
 (being allowed to work from home) was randomly allocated, workers
-wouldn’t feel so grateful towards the firm in such a way to change their
-behavior. Still, in the post-experiment survey, the question “How did
-working from home improve your performance?” received as the fourth most
-common answer “Feeling more positive towards Ctrip for allowing me to
-work from home”, with 12% of the responses. The authors then argue that
-Gift-Exchanged was only a secondary driver of the main effect. In this
-case, the post-experiment survey is a way of collecting data to check if
-the Gift-Exchange effect is relevant, but it has problems since it was
-collected after the treatment.</p>
+wouldn’t feel so grateful towards the firm in such a way as to change
+their behavior. Still, in the post-experiment survey, the question “How
+did working from home improve your performance?” received the fourth
+most common answer “Feeling more positive towards Ctrip for allowing me
+to work from home”, with 12% of the responses. The authors then argue
+that Gift-Exchanged was only a secondary driver of the main effect. In
+this case, the post-experiment survey is a way of collecting data to
+check if the Gift-Exchange effect is relevant, but it has problems since
+it was collected after the treatment.</p>
 </div>
 <div id="attrition" class="section level2" number="5.4">
 <h2><span class="header-section-number">5.4</span> Attrition</h2>
 <p>The authors document attrition rates of 17% in the treatment group
 and 35% in the control group. It’s relevant to say that attrition itself
-is a parameter of interest, since it was expected that WFH reduced
+is a parameter of interest since it was expected that WFH reduced
 attrition rates.</p>
 <p>To test for selective attrition, the authors estimate probit models
 in which the dependent variable is whether the worker attrited or not.
-Not surprisingly, low performance workers were more likely to quit their
-jobs in both the control and treatment group. Also, by estimating the
-effect of performance on probability of attrition in separate samples,
-the authors finds that the low performance workers who worked from home
-were much less likely to quit, even though they still did.</p>
+Not surprisingly, low-performance workers were more likely to quit their
+jobs in both the control and treatment groups. Also, by estimating the
+effect of performance on the probability of attrition in separate
+samples, the authors find that the low-performance workers who worked
+from home were much less likely to quit, even though they still did.</p>
 <p>This would cause the performance estimator to be biased downwards.
-Since more low performance workers in the control group leave in
+Since more low-performance workers in the control group leave in
 comparison to the treatment group, <span class="math inline">\(Y_i(0)\)</span> increases more than <span class="math inline">\(Y_i(1)\)</span> increases. Assuming monotonicity,
-the authors estimate Lee bounds. The upper bound assumes that the
-workers with lowest performance of the treatment group would quit in
-such a way to create an equal attrition rate. The lower bound is
+the authors estimate Lee’s bounds. The upper bound assumes that the
+workers with the lowest performance in the treatment group would quit in
+such a way as to create an equal attrition rate. The lower bound is
 analogous. The upper bound suggests that the effect is up to 50% larger
 than the estimated, but the lower bound is negative.</p>
 </div>
