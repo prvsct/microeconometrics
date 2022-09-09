@@ -11,7 +11,7 @@
 
 <meta name="author" content="Pedro Scatimburgo" />
 
-<meta name="date" content="2022-09-02" />
+<meta name="date" content="2022-09-09" />
 
 <title>Microeconometrics Report I: Does Working from Home Work? Evidence from a Chinese Experiment¹</title>
 
@@ -378,7 +378,7 @@ pre code {
 <h1 class="title toc-ignore">Microeconometrics Report I: <em>Does
 Working from Home Work? Evidence from a Chinese Experiment¹</em></h1>
 <h4 class="author">Pedro Scatimburgo</h4>
-<h4 class="date">02 September 2022</h4>
+<h4 class="date">09 September 2022</h4>
 
 </div>
 
@@ -1026,12 +1026,26 @@ only for the t-statistic (I got the question wrong, which I only
 realized after the aforementioned 4 hours). The calculated p-value was
 <code>0.00027</code>. Note that the p-value base on the asymptotic
 distribution is <code>0.0002651066</code>.</p>
-<p>In general, the randomization inference p-values calculated using
-<span class="math inline">\(\hat{\beta}\)</span> and <span class="math inline">\(t = \frac{\hat{\beta}}{se(\hat{\beta})}\)</span>
-might be different because they are different statistics (Otávio?).
-These p-values can differ from p-values based on the asymptotic
-distribution of the estimator because of bad or imprecise asymptotic
-approximations.</p>
+<p>Because randomization inference relies on the exact distribution of
+the test statistic – or close to it, since we are not performing all
+possible permutations – under a sharp null, bad approximations or
+different null hypothesis cannot be a reason why the randomization
+inference p-values calculated using <span class="math inline">\(\hat{\beta}\)</span> and <span class="math inline">\(t = \frac{\hat{\beta}}{se(\hat{\beta})}\)</span>
+might be different. Instead, this difference comes from the fact that,
+being different statistics, they have different power against the
+alternative hypothesis of non-null intention to treat effect. Having
+different power, one could expect that they will result in different
+p-values. Still, both the estimator and the t-statistic have good power
+against such alternative hypothesis, which explain why RI p-values using
+each of them are identical. Small differences in these p-values are
+likely to be consequence of the simulation itself.</p>
+<p>The RI p-values can differ from the p-value calculated using the
+asymptotic distribution of the estimator mostly because of bad or
+imprecise asymptotic approximations. Also, because the sharp null and
+the null in the asymptotic inference are not the same, p-values could
+also be different. It could be the case, for example, that the sharp
+null is false – potential outcomes are different for at least one
+individual – while the intention to treat effect is still zero.</p>
 </div>
 <div id="discuss-potential-problems-in-the-experiment.-discuss-how-you-would-be-able-to-check-whether-these-problems-are-relevant-for-example-by-looking-at-the-available-data-or-by-collecting-more-data-or-how-the-experiment-could-have-been-done-differently-to-avoid-such-problems.-be-clear-about-whether-the-potential-problems-you-raised-were-discussed-in-the-paper." class="section level1" number="5">
 <h1><span class="header-section-number">5</span> Discuss potential
