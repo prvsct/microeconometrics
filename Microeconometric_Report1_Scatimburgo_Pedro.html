@@ -732,8 +732,8 @@ Experiment_t\)</span> is <code>experiment_treatment</code>. I save the
 results of the regression in the <code>reg1</code> object. In R, using
 <code>estimatr::lm_robust</code>, this would be something like (I use
 <code>se_type = &quot;stata&quot;</code> to get as close as possible to the
-authors’ results; <a href="https://declaredesign.org/r/estimatr/articles/mathematical-notes.html" title="Who still uses Stata though?">click here for a discussion on the
-possible values for this argument</a>):</p>
+authors’ results; <a href="https://declaredesign.org/r/estimatr/articles/mathematical-notes.html">click
+here for a discussion on the possible values for this argument</a>):</p>
 <pre class="r"><code>reg1 &lt;- performance %&gt;%
   estimatr::lm_robust(formula = perform1 ~ experiment_treatment, # perform1 is regressed against experiment_treatment
                       clusters = personid, # Clusters in personid, which is the individual
