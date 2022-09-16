@@ -46,7 +46,7 @@ h4.date { /* Header 4 - and the author and data headers use this too  */
 }
 </style>
 
-To run this code you will have to install and load ``tidyverse`` and ``rdrobust``. ``tidyverse`` is the core of all the data wrangling. ``rdrobust``implements statistical inference and graphical procedures for Regression Discontinuity designs employing local polynomial and partitioning methods. [Read more about the package.](https://rdpackages.github.io/rdrobust/):
+To run this code you will have to install and load ``tidyverse`` and ``rdrobust``. ``tidyverse`` is the core of all the data wrangling. ``rdrobust``implements statistical inference and graphical procedures for Regression Discontinuity designs employing local polynomial and partitioning methods. [Read more about the package.](https://rdpackages.github.io/rdrobust/)
 
 ```{r eval=FALSE, include=TRUE}
 install.packages("tidyverse")
@@ -125,7 +125,7 @@ density_pvalues <- data.frame(
 )
 
 
-for(i in 1:length(rvs)){# Loop begins here
+for(i in 1:length(rvs)){# Loop starts here
   
   # I conduct the density test for each variable using rddensity
   density_test <- rddensity::rddensity(X = as.matrix(database[,rvs[i]]),
@@ -149,8 +149,42 @@ Tá rejeitando a nula pra ihf?
 
 ## Covariate balance tests
 
-Como faz?
+For the covariate balance test, I again follow @cattaneo2020 and estimate a sharp RD using each covariate as a outcome variable and the IFH as the running variable. We should expect to find no effect for any of the covariates.
 
+
+```{r}
+# Here I create vectors containing the name of the variables and the cutoffs, so I can iterate the loop
+covariates <- c("woman", "age", "educ", "nb_hh_members", "hh_woman", "pc_income", "pc_spend", "formal")
+
+# Since we are in the sharp case, I restrict our sample so I get only households that meet the other criteria
+database_filtered <- database %>%
+  filter(water_bill < 20 & electricity_bill < 20)
+
+for(i in 1:length(covariates)){# Loop starts here
+
+cat(" \n")
+cat(paste0("Results for the ",covariates[i], " covariate as outcome \n"))
+cat(" \n")
+
+  
+  # I perform a sharp RD using each covariate as outcome
+  density_test <- rdrobust::rdrobust(y = as.matrix(database_filtered[,covariates[i]]),
+                                     x = as.matrix(database_filtered[,"ifh"]),
+                                     cluster = as.matrix(database_filtered[,"hh_id"]),
+                                     c = 55) %>%
+    summary()
+  
+# And plot the graphic visualization
+covariate_balance_plot <- rdrobust::rdplot(y = as.matrix(database_filtered[,covariates[i]]),
+                                           x = as.matrix(database_filtered[,"ifh"]),
+                                           c = 55,
+                                           p = 3,
+                                           title = paste0("Plot of the ",covariates[i]," covariate as outcome"))
+  
+# Loop ends here
+}
+
+```
 
 ## Sharp RD design
 
@@ -159,10 +193,6 @@ Here I perform the sharp RD design, restricting our sample to only households th
 ```{r warning=FALSE}
 # Here I define the outcomes vector
 outcomes <- c("medicines","hosp_sugery","dental","vaccines")
-
-# Since we are in the sharp case, I restrict our sample so I get only households that meet the other criteria
-database_filtered <- database %>%
-  filter(water_bill < 20 & electricity_bill < 20)
 
 for(i in 1:length(outcomes)){# Loop starts here
 
@@ -185,6 +215,8 @@ ifh_sharp_plot <- rdrobust::rdplot(y = as.matrix(database_filtered[,outcomes[i]]
 }
 
 ```
+
+Nada tem efeito nessa bosta?
 
 ## Fuzzy RD design
 
