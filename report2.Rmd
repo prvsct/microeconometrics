@@ -1,0 +1,213 @@
+---
+title: "Microeconometrics Report II: Regression Discontinuity Design"
+author: "Pedro Scatimburgo"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    theme: readable
+    toc: true
+    number_sections: true
+  pdf_document: default
+bibliography: references_report2.bib  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+library(tidyverse)
+library(rdrobust)
+
+database <- readr::read_csv("report2/dataset_trab2_rdd.csv")
+```
+
+<style type="text/css">
+
+h1.title {
+  font-size: 24px;
+  color: black;
+  text-align: center;
+}
+subtitle {
+  font-size: 24px;
+  color: black;
+  text-align: center;
+}
+h4.author { /* Header 4 - and the author and data headers use this too  */
+    font-size: 16px;
+  font-family: "Kaleko205Text-Bold", Kaleko 205, Bold;
+  color: black;
+  text-align: center;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+  font-size: 16px;
+  font-family: "Kaleko205Text-Bold", Kaleko 205, Bold;
+  color: black;
+  text-align: center;
+}
+</style>
+
+To run this code you will have to install and load ``tidyverse`` and ``rdrobust``. ``tidyverse`` is the core of all the data wrangling. ``rdrobust``implements statistical inference and graphical procedures for Regression Discontinuity designs employing local polynomial and partitioning methods. [Read more about the package.](https://rdpackages.github.io/rdrobust/):
+
+```{r eval=FALSE, include=TRUE}
+install.packages("tidyverse")
+install.packages("rdrobust")
+install.packages('rddensity')
+install.packages('lpdensity')
+
+library(tidyverse)
+
+database <- readr::read_csv("report2/dataset_trab2_rdd.csv")
+```
+
+For this assignment, I used as a main theoretical reference the *Causal Inference: The Mixtape.* book by Scott Cunningham. I also relied on @cattaneo2020.
+
+# Discuss the idea of relying on RDD to estimate the causal effects of this policy. For example, discuss under which conditions this could be a reasonable idea, which kind of institutional details or data you could look into to (in)validate this strategy, and so on.
+
+The RDD consists in estimating a causal effect for individuals whose score is in a close neighborhood around some cutoff $c_0$. That is, all units $i$ have a score for some running variable $Z_i$. Treatment $D_i$ is assigned to those units for which $Z_i \geq c_0$ and not assigned to units for which $Z_i < c_0$. Therefore, he probability of receiving treatment changes abruptly at the cutoff -- discontinuously, in the sharp RDD. This allows us to estimate a local average treatment effect: we are only identifying an average causal effect for those units at the cutoff.^[To be more precise, the RDD always estimates a local effect in the sense that we identify it for the units around the cutoff. The fuzzy RD, being simply an instrumental variable, estimates a local average treatment effect (LATE) in the sense that we identify the effect around the cutoff *and* conditional on the individual being a complier (thanks Otávio for this clarification!)]
+
+The key identifying assumption of the RDD is the continuity assumption. It states that the expected values of the potential outcomes, conditional com the running variable, are continuous functions of the running variable even around the cutoff. That is, absent the treatment, expected potential outcomes wouldn't have changed around $c_0$, meaning that there is no competing interventions around the cutoff: it cannot be that other interventions are conducted using the same cutoff that happens between the running variable being the created and the outcome being observed. If it's valid, the continuity assumption rules out omitted variable bias around the cutoff.
+
+This way, to conduct the RD design, the researcher must have at her disposal a running variable, a treatment, and a well-defined cutoff. To satisfy the continuity assumption, the cutoff cannot be endogenously related to some competing intervention occurring at the same moment when the treatment is triggered. Familiarity with the institutional framework is therefore essential for the employment of the RD design: the researcher must not only be able to recognize situations where the probability of being treated for some policy changes discontinuously at the cutoff, but in such a way that this cutoff is not endogenous to competing interventions. It cannot be, for example, that the assignment rule is known in advance by the individuals in such a way that they are able to adjust their scores to receive the treatment, otherwise this would potentially invalidate the continuity assumption.
+
+In our case, we want to estimate the impact of a health insurance policy in a subset of the population. The framework is such that households must concomitantly meet three criteria to get treated: their calculated IFH must be below $55$, their water bill must be below $20$, and their electricity bill must also be below $20$. The assignment says nothing about if the individuals know that, to get treated, their bills must be below $20$, but it does mention that they don't know how the IFH is calculated and neither what the cutoff is.
+
+Let's then assume a worst case scenario where households do know that their bills must be below $20$. This means that these cannot be considered valid cutoffs, since they could be able to adjust. Also, they don't know how the IFH is calculated, but perhaps they do know that it exists and it is a eligibility criteria. Now, if households knew the cutoff for the IFH, they could also adjust their IFH scores to increase the probability to get treated, meaning that the continuity assumption would also be violated for the IFH. However, since we are sure that they don't know the cutoff and, not only that, but that they also don't know that their answers to the survey are used to calculated the index, then I believe it's safe to assume that households cannot adjust their IFH scores. Actually, even if they suspected that the survey is being used to assess the need of an intervention, what would make the individuals answer it as to make them look more vulnerable, without knowing the cutoff, this would not invalidate the continuity assumption.  This way, even if they do know that there also exists a cutoff for the IFH, since they cannot plausibly adjust to it, adjustment should not be a concern for the continuity assumption for the IFH. To make sure of that, we could perform a McCrary's density test and check if a observable discontinuous change in the IFH scores at the cutoff point.
+
+On a side note, we could also McCrary's density tests for the water and electricity bills. However, if we do not reject the null hypothesis of discontinuity at the cutoff points, this is still not enough evidence against possible manipulation os scores for these variables. So we have a trade-off here: assuming we do not reject the null, either we conclude that water and electricity bills are also valid running variables, and accept the risk biasing the results, or we assume that they are not valid since there exists some possibility of adjustment, and estimate a RD conditional on these criteria being met, that is, we restrict our sample only for households that have these values below $20$; the drawbacks would be having fewer observations and possibly raising concerns about external validity. In the next question, I discuss how we could somehow overcome these drawbacks by estimating a fuzzy RD.
+
+Finally, as mentioned in the second paragraph, it cannot be that other interventions are conducted using the same cutoff that happens between the running variable being the created and the outcome being observed. In other words, if the government is using the cutoff of the IFH for something other than a eligibility criteria for the policy, this would also invalidate the identifying assumption of the RDD.
+
+# Discuss how you would estimate the RDD (for example, fuzzy vs sharp, which variables you would use, and so on).
+
+Considering what was discussed in the previous question, I will not use water and electricity bills as running variables, since that in the worst case scenario, they are susceptible to adjusting. This leaves us with only the IFH as a possible running variable. We should choose if we are going to conduct a fuzzy or a sharp RD.
+
+The sharp RD design is used when the likelihood of receiving the treatment changes discontinuously when the running variable exceeds the cutoff. In the assignment, households become eligible for treatment when their IFH score exceeds $55$. It's not only that their probability of being treated increases once their score exceeds $55$, but households with smaller scores cannot get treated at all (as discussed, there shouldn't be adjusting concerns because households don't know the cutoff). This framework naturally suggests the use of a sharp RD design, with ``ifh`` being the running variable.
+
+However, since households should also meet the water and electricity bills criteria, and because we are not using these as running variables, estimating a sharp RD would require restricting our sample to only households that have ``water_bill < 20`` and ``electricity_bill < 20``. This means that, from a sample size of ``1423`` households that have ``ifh > 55``, we would get a sample size of only ``106`` households:
+
+```{r}
+(dplyr::filter(database, ifh > 55) %>%
+  summarise(households = length(unique(hh_id)),
+            individuals = n()))
+
+(dplyr::filter(database, (ifh > 55 & water_bill < 20 & electricity_bill < 20)) %>%
+  summarise(households = length(unique(hh_id)),
+            individuals = n()))
+```
+
+This is a large sample reduction. Also, we would be estimating an effect conditional on this subset of the population, which could raise concerns of external validity.
+
+On the other hand, estimating a fuzzy RD is also possible. In this case, the running variable is used an instrument, and all assumptions and implications of the instrumental variable estimator also apply here. This means that we would be estimating a local average treatment effect, that is, the effect for the compliers. But we would get a larger sample size and estimate a unconditional effect (in the sense that we are not restricting our sample).
+
+So I will conduct both designs and compare the results. Remember, the dataset contains a total of ``2157`` households (including the ones that meet none of the criteria), which have varying numbers of individuals, represented by ``nb_hh_members``. We want to estimate the effect of having access to the funded health insurance -- the treatment -- on several outcomes for each individual $i$ in household $j$. Let $y$ denote the outcome variables, which are ``medicines``, ``hosp_sugery``, ``dental`` and ``vaccines``. I will not include any covariates, as it is usual practice in RD designs. Also, since there is correlation between individuals inside the same household, I also cluster at the household level, that is, I set ``cluster = hh_id``.
+
+I will conduct the estimations using the ``rdrobust`` package. The running variable is ``ifh``. I use the e local-polynomial used to construct the point-estimator of ``p=1``,  the order of the local-polynomial used to construct the bias-correction of ``q=2``, and a bandwith ``h``and a bandwith bias ``b`` computed by the ``rdbwselect`` function. These are the default values of the ``rdrobust`` function, and I see no reason to change them.
+
+# Conduct the data analysis to estimate the treatment effects and evaluate (whenever possible) whether the assumptions for the RDD are reasonable in this setting. If you believe this is a reasonable approach, think of that as your research paper, where you are trying to convince others that you have a great paper. If you don't believe this is a reasonable approach, make the case that we should not believe in these results.
+
+Before performing the actual estimations, I will try to evaluate the assumptions by performing two tests: manipulation tests and covariate balances tests. As discussed in question 1, if there is no adjusting by the individuals in their scores of the running variable, then we should not reject the null hypothesis of continuity of the density function of the running variable. This is known as the McCrary's test or, more recently, manipulation tests. I will perform the manipulation tests for the IFH, the electricity bill and the water bill variables. However, as discussed before, since we assume a worst case scenario, even if the null hypothesis is not rejected for the electricity bill and the water bill variables, I will not use them as running variables, since they are still susceptible to adjusting, unlike the IFH.
+
+Also, for the continuity assumption to hold, there must no be a observable discontinuous change in the average values of the covariates around the cutoff. To test for this, I conduct covariate balance tests, or placebo tests. For the sake of completeness, I will also perform the test for all covariates available in the dataset.
+
+## Manipulation (McCrary's) tests
+
+I will perform the manipulation tests in ``ifh``, ``water_bill`` and ``eletricity_bil``. I perform all of them in the ``for`` loop below. Then I plot the densities using ``rdplotdensity``.
+
+```{r warning=FALSE}
+# Here I create vectors containing the name of the variables and the cutoffs, so I can iterate the loop
+rvs <- c("ifh", "water_bill", "electricity_bill")
+cutoffs <- c(55, 20, 20)
+
+# I create a dataframe where I store the pvalues of the density test
+density_pvalues <- data.frame(
+  "variable"=rvs,
+  "pvalue"=numeric(3)
+)
+
+
+for(i in 1:length(rvs)){# Loop begins here
+  
+  # I conduct the density test for each variable using rddensity
+  density_test <- rddensity::rddensity(X = as.matrix(database[,rvs[i]]),
+                                       c = cutoffs[i])
+  
+  # Then I save the pvalues
+  density_pvalues$pvalue[i] <- as.numeric(density_test$test[4])
+  
+  # And plot the graphic visualization
+  density_plot <- rddensity::rdplotdensity(rdd = density_test,
+                                           X = as.matrix(database[,rvs[i]]),
+                                           title = paste0("Density of the ",rvs[i]," variable"))
+  
+# Loop ends here
+  }
+
+density_pvalues
+```
+
+Tá rejeitando a nula pra ihf?
+
+## Covariate balance tests
+
+Como faz?
+
+
+## Sharp RD design
+
+Here I perform the sharp RD design, restricting our sample to only households that have electricity and water bills below $20$. As discussed, this will cause a reduction in sample size and also imply that we are identifying the effect on this subset of the population only. I will plot the graphic visualization and then estimate the regression using ``rdrobust``, for each of the outcome variables ``medicines``, ``hosp_sugery``, ``dental`` and ``vaccines``.
+
+```{r warning=FALSE}
+# Here I define the outcomes vector
+outcomes <- c("medicines","hosp_sugery","dental","vaccines")
+
+# Since we are in the sharp case, I restrict our sample so I get only households that meet the other criteria
+database_filtered <- database %>%
+  filter(water_bill < 20 & electricity_bill < 20)
+
+for(i in 1:length(outcomes)){# Loop starts here
+
+cat(paste0("Results for the ",outcomes[i], " outcome variable \n"))
+cat(" \n")
+
+ifh_sharp <- rdrobust::rdrobust(y = as.matrix(database_filtered[,outcomes[i]]),
+                                x = as.matrix(database_filtered[,"ifh"]),
+                                cluster = as.matrix(database_filtered[,"hh_id"]),
+                                c = 55) %>%
+  summary()
+
+ifh_sharp_plot <- rdrobust::rdplot(y = as.matrix(database_filtered[,outcomes[i]]),
+                                   x = as.matrix(database_filtered[,"ifh"]),
+                                   c = 55,
+                                   p = 3,
+                                   title = paste0("Plot of the ",outcomes[i]," outcome variable"))
+
+# Loop ends here
+}
+
+```
+
+## Fuzzy RD design
+
+In the fuzzy RD design, we don't have to restrict our sample, and use the running variable as an instrument. This gives us a larger sample size and allows us to estimate the effect unconditional on any subset of the population. However, as with any IV, we are estimating a LATE.
+
+```{r}
+for(i in 1:length(outcomes)){# Loop starts here
+
+cat(paste0("Results for the ",outcomes[i], " outcome variable \n"))
+cat(" \n")
+
+ifh_sharp <- rdrobust::rdrobust(y = as.matrix(database[,outcomes[i]]),
+                                x = as.matrix(database[,"ifh"]),
+                                fuzzy = as.matrix(database[,"ifh"]),
+                                cluster = as.matrix(database[,"hh_id"]),
+                                c = 55) %>%
+  summary()
+
+# Loop ends here
+}
+
+```
+
+## Conclusion
+
+# References
