@@ -8,7 +8,8 @@ output:
     toc: true
     number_sections: true
   pdf_document: default
-bibliography: references_report2.bib  
+bibliography: references_report2.bib
+nocite: '@*'
 ---
 
 ```{r setup, include=FALSE}
@@ -20,6 +21,7 @@ library(rdrobust)
 database <- readr::read_csv("report2/dataset_trab2_rdd.csv")
 ```
 
+```{=html}
 <style type="text/css">
 
 h1.title {
@@ -45,8 +47,9 @@ h4.date { /* Header 4 - and the author and data headers use this too  */
   text-align: center;
 }
 </style>
+```
 
-To run this code you will have to install and load ``tidyverse`` and ``rdrobust``. ``tidyverse`` is the core of all the data wrangling. ``rdrobust``implements statistical inference and graphical procedures for Regression Discontinuity designs employing local polynomial and partitioning methods. [Read more about the package.](https://rdpackages.github.io/rdrobust/)
+To run this code you will have to install and load `tidyverse` and `rdrobust`. `tidyverse` is the core of all the data wrangling. `rdrobust`implements statistical inference and graphical procedures for Regression Discontinuity designs employing local polynomial and partitioning methods. [Read more about the package.](https://rdpackages.github.io/rdrobust/)
 
 ```{r eval=FALSE, include=TRUE}
 install.packages("tidyverse")
@@ -63,7 +66,9 @@ For this assignment, I used as a main theoretical reference the *Causal Inferenc
 
 # Discuss the idea of relying on RDD to estimate the causal effects of this policy. For example, discuss under which conditions this could be a reasonable idea, which kind of institutional details or data you could look into to (in)validate this strategy, and so on.
 
-The RDD consists in estimating a causal effect for individuals whose score is in a close neighborhood around some cutoff $c_0$. That is, all units $i$ have a score for some running variable $Z_i$. Treatment $D_i$ is assigned to those units for which $Z_i \geq c_0$ and not assigned to units for which $Z_i < c_0$. Therefore, he probability of receiving treatment changes abruptly at the cutoff -- discontinuously, in the sharp RDD. This allows us to estimate a local average treatment effect: we are only identifying an average causal effect for those units at the cutoff.^[To be more precise, the RDD always estimates a local effect in the sense that we identify it for the units around the cutoff. The fuzzy RD, being simply an instrumental variable, estimates a local average treatment effect (LATE) in the sense that we identify the effect around the cutoff *and* conditional on the individual being a complier (thanks Otávio for this clarification!)]
+The RDD consists in estimating a causal effect for individuals whose score is in a close neighborhood around some cutoff $c_0$. That is, all units $i$ have a score for some running variable $Z_i$. Treatment $D_i$ is assigned to those units for which $Z_i \geq c_0$ and not assigned to units for which $Z_i < c_0$. Therefore, he probability of receiving treatment changes abruptly at the cutoff -- discontinuously, in the sharp RDD. This allows us to estimate a local average treatment effect: we are only identifying an average causal effect for those units at the cutoff.[^1]
+
+[^1]: To be more precise, the RDD always estimates a local effect in the sense that we identify it for the units around the cutoff. The fuzzy RD, being simply an instrumental variable, estimates a local average treatment effect (LATE) in the sense that we identify the effect around the cutoff *and* conditional on the individual being a complier (thanks Otávio for this clarification!)
 
 The key identifying assumption of the RDD is the continuity assumption. It states that the expected values of the potential outcomes, conditional com the running variable, are continuous functions of the running variable even around the cutoff. That is, absent the treatment, expected potential outcomes wouldn't have changed around $c_0$, meaning that there is no competing interventions around the cutoff: it cannot be that other interventions are conducted using the same cutoff that happens between the running variable being the created and the outcome being observed. If it's valid, the continuity assumption rules out omitted variable bias around the cutoff.
 
@@ -71,7 +76,7 @@ This way, to conduct the RD design, the researcher must have at her disposal a r
 
 In our case, we want to estimate the impact of a health insurance policy in a subset of the population. The framework is such that households must concomitantly meet three criteria to get treated: their calculated IFH must be below $55$, their water bill must be below $20$, and their electricity bill must also be below $20$. The assignment says nothing about if the individuals know that, to get treated, their bills must be below $20$, but it does mention that they don't know how the IFH is calculated and neither what the cutoff is.
 
-Let's then assume a worst case scenario where households do know that their bills must be below $20$. This means that these cannot be considered valid cutoffs, since they could be able to adjust. Also, they don't know how the IFH is calculated, but perhaps they do know that it exists and it is a eligibility criteria. Now, if households knew the cutoff for the IFH, they could also adjust their IFH scores to increase the probability to get treated, meaning that the continuity assumption would also be violated for the IFH. However, since we are sure that they don't know the cutoff and, not only that, but that they also don't know that their answers to the survey are used to calculated the index, then I believe it's safe to assume that households cannot adjust their IFH scores. Actually, even if they suspected that the survey is being used to assess the need of an intervention, what would make the individuals answer it as to make them look more vulnerable, without knowing the cutoff, this would not invalidate the continuity assumption.  This way, even if they do know that there also exists a cutoff for the IFH, since they cannot plausibly adjust to it, adjustment should not be a concern for the continuity assumption for the IFH. To make sure of that, we could perform a McCrary's density test and check if a observable discontinuous change in the IFH scores at the cutoff point.
+Let's then assume a worst case scenario where households do know that their bills must be below $20$. This means that these cannot be considered valid cutoffs, since they could be able to adjust. Also, they don't know how the IFH is calculated, but perhaps they do know that it exists and it is a eligibility criteria. Now, if households knew the cutoff for the IFH, they could also adjust their IFH scores to increase the probability to get treated, meaning that the continuity assumption would also be violated for the IFH. However, since we are sure that they don't know the cutoff and, not only that, but that they also don't know that their answers to the survey are used to calculated the index, then I believe it's safe to assume that households cannot adjust their IFH scores. Actually, even if they suspected that the survey is being used to assess the need of an intervention, what would make the individuals answer it as to make them look more vulnerable, without knowing the cutoff, this would not invalidate the continuity assumption. This way, even if they do know that there also exists a cutoff for the IFH, since they cannot plausibly adjust to it, adjustment should not be a concern for the continuity assumption for the IFH. To make sure of that, we could perform a McCrary's density test and check if a observable discontinuous change in the IFH scores at the cutoff point.
 
 On a side note, we could also McCrary's density tests for the water and electricity bills. However, if we do not reject the null hypothesis of discontinuity at the cutoff points, this is still not enough evidence against possible manipulation os scores for these variables. So we have a trade-off here: assuming we do not reject the null, either we conclude that water and electricity bills are also valid running variables, and accept the risk biasing the results, or we assume that they are not valid since there exists some possibility of adjustment, and estimate a RD conditional on these criteria being met, that is, we restrict our sample only for households that have these values below $20$; the drawbacks would be having fewer observations and possibly raising concerns about external validity. In the next question, I discuss how we could somehow overcome these drawbacks by estimating a fuzzy RD.
 
@@ -81,27 +86,29 @@ Finally, as mentioned in the second paragraph, it cannot be that other intervent
 
 Considering what was discussed in the previous question, I will not use water and electricity bills as running variables, since that in the worst case scenario, they are susceptible to adjusting. This leaves us with only the IFH as a possible running variable. We should choose if we are going to conduct a fuzzy or a sharp RD.
 
-The sharp RD design is used when the likelihood of receiving the treatment changes discontinuously when the running variable exceeds the cutoff. In the assignment, households become eligible for treatment when their IFH score exceeds $55$. It's not only that their probability of being treated increases once their score exceeds $55$, but households with smaller scores cannot get treated at all (as discussed, there shouldn't be adjusting concerns because households don't know the cutoff). This framework naturally suggests the use of a sharp RD design, with ``ifh`` being the running variable.
+The sharp RD design is used when the likelihood of receiving the treatment changes discontinuously when the running variable exceeds the cutoff. In the assignment, households become eligible for treatment when their IFH score exceeds $55$. It's not only that their probability of being treated increases once their score exceeds $55$, but households with smaller scores cannot get treated at all (as discussed, there shouldn't be adjusting concerns because households don't know the cutoff). This framework naturally suggests the use of a sharp RD design, with `ifh` being the running variable.
 
-However, since households should also meet the water and electricity bills criteria, and because we are not using these as running variables, estimating a sharp RD would require restricting our sample to only households that have ``water_bill < 20`` and ``electricity_bill < 20``. This means that, from a sample size of ``1423`` households that have ``ifh > 55``, we would get a sample size of only ``106`` households:
+However, since households should also meet the water and electricity bills criteria, and because we are not using these as running variables, estimating a sharp RD would require restricting our sample to only households that have `water_bill < 20` and `electricity_bill < 20`. This means that, from a sample size of `1423` households that have `ifh < 55`, we would get a sample size of only `106` households:
 
 ```{r}
-(dplyr::filter(database, ifh > 55) %>%
+knitr::kable(dplyr::filter(database, ifh < 55) %>%
   summarise(households = length(unique(hh_id)),
-            individuals = n()))
+            individuals = n()),
+  caption = "Number of unique individuals and households that meet IFH below 55.")
 
-(dplyr::filter(database, (ifh > 55 & water_bill < 20 & electricity_bill < 20)) %>%
+knitr::kable(dplyr::filter(database, (ifh < 55 & water_bill < 20 & electricity_bill < 20)) %>%
   summarise(households = length(unique(hh_id)),
-            individuals = n()))
+            individuals = n()),
+  caption = "Number of unique households and individuals that meet IFH below 55, water bill below 20, and electricity bill below 20.")
 ```
 
 This is a large sample reduction. Also, we would be estimating an effect conditional on this subset of the population, which could raise concerns of external validity.
 
 On the other hand, estimating a fuzzy RD is also possible. In this case, the running variable is used an instrument, and all assumptions and implications of the instrumental variable estimator also apply here. This means that we would be estimating a local average treatment effect, that is, the effect for the compliers. But we would get a larger sample size and estimate a unconditional effect (in the sense that we are not restricting our sample).
 
-So I will conduct both designs and compare the results. Remember, the dataset contains a total of ``2157`` households (including the ones that meet none of the criteria), which have varying numbers of individuals, represented by ``nb_hh_members``. We want to estimate the effect of having access to the funded health insurance -- the treatment -- on several outcomes for each individual $i$ in household $j$. Let $y$ denote the outcome variables, which are ``medicines``, ``hosp_sugery``, ``dental`` and ``vaccines``. I will not include any covariates, as it is usual practice in RD designs. Also, since there is correlation between individuals inside the same household, I also cluster at the household level, that is, I set ``cluster = hh_id``.
+So I will conduct both designs and compare the results. Remember, the dataset contains a total of `2157` households (including the ones that meet none of the criteria), which have varying numbers of individuals, represented by `nb_hh_members`. We want to estimate the effect of having access to the funded health insurance -- the treatment -- on several outcomes for each individual $i$ in household $j$. Let $y$ denote the outcome variables, which are `medicines`, `hosp_sugery`, `dental` and `vaccines`. In RD designs, it's usual practice to not include any covariates -- @cattaneo2020 presents a discussion about improving the precision of the estimates. We should not expect, however, that the inclusion of covariates leads to considerable changes in the point estimates. Considering this, I have decided to perform the estimations with the full set of covariates and without any covariate. Also, since there is probably correlation between individuals inside the same household, I also cluster at the household level, that is, I set `cluster = hh_id`.
 
-I will conduct the estimations using the ``rdrobust`` package. The running variable is ``ifh``. I use the e local-polynomial used to construct the point-estimator of ``p=1``,  the order of the local-polynomial used to construct the bias-correction of ``q=2``, and a bandwith ``h``and a bandwith bias ``b`` computed by the ``rdbwselect`` function. These are the default values of the ``rdrobust`` function, and I see no reason to change them.
+I will conduct the estimations using the `rdrobust` package. The running variable is `ifh`. I use the e local-polynomial used to construct the point-estimator of `p=1`, the order of the local-polynomial used to construct the bias-correction of `q=2`, and a bandwith `h`and a bandwith bias `b` computed by the `rdbwselect` function. These are the default values of the `rdrobust` function, and I see no reason to change them.
 
 # Conduct the data analysis to estimate the treatment effects and evaluate (whenever possible) whether the assumptions for the RDD are reasonable in this setting. If you believe this is a reasonable approach, think of that as your research paper, where you are trying to convince others that you have a great paper. If you don't believe this is a reasonable approach, make the case that we should not believe in these results.
 
@@ -109,9 +116,21 @@ Before performing the actual estimations, I will try to evaluate the assumptions
 
 Also, for the continuity assumption to hold, there must no be a observable discontinuous change in the average values of the covariates around the cutoff. To test for this, I conduct covariate balance tests, or placebo tests. For the sake of completeness, I will also perform the test for all covariates available in the dataset.
 
+Finally, since we focus only in the informal workers, I will restrict our sample to include only observations with ``formal = 0``.
+
+```{r}
+database <- database %>%
+  filter(formal == 0)
+
+# I will use database_filtered in the sharp RD case and in the manipulation tests
+database_filtered <- database %>%
+  filter(water_bill < 20 & electricity_bill < 20)
+```
+
+
 ## Manipulation (McCrary's) tests
 
-I will perform the manipulation tests in ``ifh``, ``water_bill`` and ``eletricity_bil``. I perform all of them in the ``for`` loop below. Then I plot the densities using ``rdplotdensity``.
+I will perform the manipulation tests in `ifh`, `water_bill` and `eletricity_bil`. I perform all of them in the `for` loop below. Then I plot the densities using `rdplotdensity`.
 
 ```{r warning=FALSE}
 # Here I create vectors containing the name of the variables and the cutoffs, so I can iterate the loop
@@ -124,7 +143,6 @@ density_pvalues <- data.frame(
   "pvalue"=numeric(3)
 )
 
-
 for(i in 1:length(rvs)){# Loop starts here
   
   # I conduct the density test for each variable using rddensity
@@ -132,7 +150,7 @@ for(i in 1:length(rvs)){# Loop starts here
                                        c = cutoffs[i])
   
   # Then I save the pvalues
-  density_pvalues$pvalue[i] <- as.numeric(density_test$test[4])
+  density_pvalues$pvalue[i] <- round(as.numeric(density_test$test[4]),3)
   
   # And plot the graphic visualization
   density_plot <- rddensity::rdplotdensity(rdd = density_test,
@@ -142,104 +160,383 @@ for(i in 1:length(rvs)){# Loop starts here
 # Loop ends here
   }
 
-density_pvalues
+knitr::kable(density_pvalues, caption = "P-values of the manipulation tests for the three potential running vatiables.")
 ```
 
-Tá rejeitando a nula pra ihf?
+We can see that, for ``ifh`` and ``water_bill``, we reject the null hypothesis of a continuous density at the cutoff at the 10% level. This includes the IFH, which has the most potential to satisfy the continuity assumption. To improve the analysis, I will also perform the test for the IFH at different cutoffs and considering only the households that meet the other criteria. I will check for cutoffs between $50$ and $60$.
+
+```{r}
+
+ifh_density_cutoffs <- data.frame(
+  "cutoff" = c(10, 20, 30, 40, 50, 55, 60, 70),
+  "pvalue" = numeric(8)
+)
+
+ifh_density_cutoffs_filtered <- data.frame(
+  "cutoff" = c(10, 20, 30, 40, 50, 55, 60, 70),
+  "pvalue" = numeric(8)
+)
+
+for(i in c(10, 20, 30, 40, 50, 55, 60, 70)){
+  
+  ifh_density_test_cutoffs <- rddensity::rddensity(X = database$ifh,
+                                                   c = i)
+  
+  ifh_density_test_cutoffs_filterd <- rddensity::rddensity(X = database_filtered$ifh,
+                                                           c = i)
+  
+  ifh_density_cutoffs$pvalue[ifh_density_cutoffs$cutoff==i] <- round(as.numeric(ifh_density_test_cutoffs$test[4]),3)
+  
+  ifh_density_cutoffs_filtered$pvalue[ifh_density_cutoffs_filtered$cutoff==i] <- round(as.numeric(ifh_density_test_cutoffs_filterd$test[4]),3)
+
+}
+
+knitr::kable(ifh_density_cutoffs,
+             caption = "P-values of the manipulation tests for the IFH at different cutoffs (full sample).")
+
+knitr::kable(ifh_density_cutoffs_filtered,
+             caption = "P-values of the manipulation tests for the IFH at different cutoffs (filtered sample)")
+
+```
+
+When we use the full sample, the null hypothesis is rejected at the 10% confidence level for several possible values, including the cutoff. Actually, we reject the null hypothesis more than we don't, including for values above $55$. When we use the filtered sample, we only reject the null hypothesis at the same level for two values, and neither are the actual cutoff $55$.
+
+Also, @cunningham2021 mentions that the manipulation tests are high-powered: with few observations around the cutoff, it's difficult to distinguish an actual discontinuity around the cutoff from noise. This way, I don't think we have enough evidence to say that there is non-random sorting at the IFH.
+
+```{r eval=FALSE, include=FALSE}
+# Tem que fazer um desse pra cada variável (density_test_ifh, density_test_water_bill, density_test_electricity_bill)
+
+# exemplo com ifh
+
+density_test_ifh <- rddensity::rddensity(X = database$ifh, c = 55)
+
+summary(density_test_ifh)
+
+# A gente queria não rejeitar H_0, o pvalor tá no objeto density_test_ifh$test[4]
+ifh_density_pvalue <- density_test_ifh$test[4]
+
+# E daí faz o plot:
+density_test_ifh_plot <- rddensity::rdplotdensity(rdd = density_test_ifh, X = database$ifh, title = "Density of the ifh variable")
+```
 
 ## Covariate balance tests
 
-For the covariate balance test, I again follow @cattaneo2020 and estimate a sharp RD using each covariate as a outcome variable and the IFH as the running variable. We should expect to find no effect for any of the covariates.
+For the covariate balance test, I again follow @cattaneo2020 and estimate a sharp RD using each covariate as a outcome variable and the IFH as the running variable. We should expect to find no effect for any of the covariates. Again I perform the tests using both ``database`` and ``database_filtered``.
 
-
-```{r}
+```{r, warning=F}
 # Here I create vectors containing the name of the variables and the cutoffs, so I can iterate the loop
-covariates <- c("woman", "age", "educ", "nb_hh_members", "hh_woman", "pc_income", "pc_spend", "formal")
+covariates <- c("woman", "age", "educ", "nb_hh_members", "hh_woman", "pc_income", "pc_spend")
 
 # Since we are in the sharp case, I restrict our sample so I get only households that meet the other criteria
-database_filtered <- database %>%
-  filter(water_bill < 20 & electricity_bill < 20)
+
+# Here I create a dataframe that will receive the point estimation, robust pvalues and confidence intervals for each covariate
+covariate_results <- data.frame(
+  "covariate" = covariates,
+  "coefficient" = numeric(7),
+  "robust_pvalue" = numeric(7),
+  "robust_ci_lower" = numeric(7),
+  "robust_ci_upper" = numeric(7)
+)
+
+covariate_results_filtered <- data.frame(
+  "covariate" = covariates,
+  "coefficient" = numeric(7),
+  "robust_pvalue" = numeric(7),
+  "robust_ci_lower" = numeric(7),
+  "robust_ci_upper" = numeric(7)
+)
 
 for(i in 1:length(covariates)){# Loop starts here
-
-cat(" \n")
-cat(paste0("Results for the ",covariates[i], " covariate as outcome \n"))
-cat(" \n")
-
   
-  # I perform a sharp RD using each covariate as outcome
-  density_test <- rdrobust::rdrobust(y = as.matrix(database_filtered[,covariates[i]]),
-                                     x = as.matrix(database_filtered[,"ifh"]),
-                                     cluster = as.matrix(database_filtered[,"hh_id"]),
-                                     c = 55) %>%
-    summary()
+## Filtered Sample
+# I perform a sharp RD using each covariate as outcome
+covariate_balance_test_filtered <- rdrobust::rdrobust(y = as.matrix(database_filtered[,covariates[i]]),
+                                   x = as.matrix(database_filtered[,"ifh"]),
+                                   cluster = as.matrix(database_filtered[,"hh_id"]),
+                                   c = 55)
+
+covariate_results_filtered$coefficient[i] <- round(covariate_balance_test_filtered$coef[1],3)
+covariate_results_filtered$robust_pvalue[i] <- round(covariate_balance_test_filtered$pv[3],3)
+covariate_results_filtered$robust_ci_lower[i] <- round(covariate_balance_test_filtered$ci[3,1],3)
+covariate_results_filtered$robust_ci_upper[i] <- round(covariate_balance_test_filtered$ci[3,2],3)
   
 # And plot the graphic visualization
-covariate_balance_plot <- rdrobust::rdplot(y = as.matrix(database_filtered[,covariates[i]]),
+covariate_balance_plot_filtered <- rdrobust::rdplot(y = as.matrix(database_filtered[,covariates[i]]),
                                            x = as.matrix(database_filtered[,"ifh"]),
                                            c = 55,
-                                           p = 3,
-                                           title = paste0("Plot of the ",covariates[i]," covariate as outcome"))
+                                           title = paste0("Plot of the ",covariates[i]," covariate as outcome (filtered sample)"))
+
+## Full Sample 
+# I perform a sharp RD using each covariate as outcome
+covariate_balance_test <- rdrobust::rdrobust(y = as.matrix(database[,covariates[i]]),
+                                   x = as.matrix(database[,"ifh"]),
+                                   cluster = as.matrix(database[,"hh_id"]),
+                                   c = 55)
+
+covariate_results$coefficient[i] <- round(covariate_balance_test$coef[1],3)
+covariate_results$robust_pvalue[i] <- round(covariate_balance_test$pv[3],3)
+covariate_results$robust_ci_lower[i] <- round(covariate_balance_test$ci[3,1],3)
+covariate_results$robust_ci_upper[i] <- round(covariate_balance_test$ci[3,2],3)
+  
+# And plot the graphic visualization
+covariate_balance_plot <- rdrobust::rdplot(y = as.matrix(database[,covariates[i]]),
+                                           x = as.matrix(database[,"ifh"]),
+                                           c = 55,
+                                           title = paste0("Plot of the ",covariates[i]," covariate as outcome (full sample)"))
   
 # Loop ends here
 }
 
+knitr::kable(covariate_results, caption = "P-values of the density tests for each outcome, using a cutoff of 55 (full sample)")
+
+knitr::kable(covariate_results_filtered, caption = "P-values of the density tests for each outcome, using a cutoff of 55 (filtered sample)")
+
 ```
+
+For both specifications, we don't reject the null hypothesis for any outcome at any reasonable significance level.
+
+```{r eval=FALSE, include=FALSE}
+# Exemplo com woman
+# Ainda tem que usar o database_filtered
+
+covariate_balance_test_ifh <- rdrobust::rdrobust(y = database_filtered$woman,
+                                                 x = database_filtered$ifh,
+                                                 cluster = database_filtered$hh_id,
+                                                 c = 55)
+
+# Ele vai dar aviso de mass point provavelmente porque o ifh teve adjusting
+# A gente queria não rejeitar H_0 também. O pvalor robusto tá no objeto covariate_balance_test_ifh$pv[3]
+covariate_balace_ifh_pvalue <- covariate_balance_test_ifh$pv[3]
+
+# Daí faz o plot do mesmo jeito de antes
+covariate_balance_ifh_plot <- rdrobust::rdplot(y = database_filtered$woman,
+                                               x = database_filtered$ifh,
+                                               c = 55,
+                                               p = 4,
+                                               title = "Density of the woman covariate")
+
+```
+
 
 ## Sharp RD design
 
-Here I perform the sharp RD design, restricting our sample to only households that have electricity and water bills below $20$. As discussed, this will cause a reduction in sample size and also imply that we are identifying the effect on this subset of the population only. I will plot the graphic visualization and then estimate the regression using ``rdrobust``, for each of the outcome variables ``medicines``, ``hosp_sugery``, ``dental`` and ``vaccines``.
+Here I perform the sharp RD design, restricting our sample to only households that have electricity and water bills below $20$. As discussed, this will cause a reduction in sample size and also imply that we are identifying the effect on this subset of the population only. I will plot the graphic visualization and then estimate the regression using `rdrobust`, for each of the outcome variables `medicines`, `hosp_sugery`, `dental` and `vaccines`.
+
+It's important to mention that ``rdrobust`` and ``rdplot`` use different approaches. As @cattaneo2020 explains, it's more adequate that the plotting uses global approximations and higher-order polynomials to fit the average control response and average treatment response functions. This way, the default value for the polynomial order of the ``rdplot`` function is ``p = 4``. The best practice for the actual RD estimation, on the other hand, is to use local approximations and lower-order polynomials, such that the default value for the polynomial order of the ``rdrobust`` function is ``p = 1``.
 
 ```{r warning=FALSE}
 # Here I define the outcomes vector
 outcomes <- c("medicines","hosp_sugery","dental","vaccines")
 
+# Here I create a dataframe that will receive the point estimation, robust pvalues and confidence intervals for each outcome
+outcome_results_sharp <- data.frame(
+  "outcome" = outcomes,
+  "coefficient" = numeric(4),
+  "robust_pvalue" = numeric(4),
+  "robust_ci_lower" = numeric(4),
+  "robust_ci_upper" = numeric(4)
+)
+
+outcome_results_sharp_covariates <- data.frame(
+  "outcome" = outcomes,
+  "coefficient" = numeric(4),
+  "robust_pvalue" = numeric(4),
+  "robust_ci_lower" = numeric(4),
+  "robust_ci_upper" = numeric(4)
+)
+
 for(i in 1:length(outcomes)){# Loop starts here
 
-cat(paste0("Results for the ",outcomes[i], " outcome variable \n"))
-cat(" \n")
-
+## No covariates
 ifh_sharp <- rdrobust::rdrobust(y = as.matrix(database_filtered[,outcomes[i]]),
                                 x = as.matrix(database_filtered[,"ifh"]),
                                 cluster = as.matrix(database_filtered[,"hh_id"]),
-                                c = 55) %>%
-  summary()
+                                c = 55)
+
+outcome_results_sharp$coefficient[i] <- round(ifh_sharp$coef[1],3)
+outcome_results_sharp$robust_pvalue[i] <- round(ifh_sharp$pv[3],3)
+outcome_results_sharp$robust_ci_lower[i] <- round(ifh_sharp$ci[3,1],3)
+outcome_results_sharp$robust_ci_upper[i] <- round(ifh_sharp$ci[3,2],3)
+
 
 ifh_sharp_plot <- rdrobust::rdplot(y = as.matrix(database_filtered[,outcomes[i]]),
                                    x = as.matrix(database_filtered[,"ifh"]),
                                    c = 55,
-                                   p = 3,
-                                   title = paste0("Plot of the ",outcomes[i]," outcome variable"))
+                                   p = 4,
+                                   title = paste0("Plot of the ",outcomes[i]," outcome variable (filtered sample, no covariates)"))
+
+## Full set of covariates
+ifh_sharp_covariates <- rdrobust::rdrobust(y = as.matrix(database_filtered[,outcomes[i]]),
+                                x = as.matrix(database_filtered[,"ifh"]),
+                                cluster = as.matrix(database_filtered[,"hh_id"]),
+                                c = 55,
+                                covs = as.matrix(database_filtered[,covariates]))
+
+outcome_results_sharp_covariates$coefficient[i] <- round(ifh_sharp_covariates$coef[1],3)
+outcome_results_sharp_covariates$robust_pvalue[i] <- round(ifh_sharp_covariates$pv[3],3)
+outcome_results_sharp_covariates$robust_ci_lower[i] <- round(ifh_sharp_covariates$ci[3,1],3)
+outcome_results_sharp_covariates$robust_ci_upper[i] <- round(ifh_sharp_covariates$ci[3,2],3)
+
+
+ifh_sharp_plot <- rdrobust::rdplot(y = as.matrix(database_filtered[,outcomes[i]]),
+                                   x = as.matrix(database_filtered[,"ifh"]),
+                                   c = 55,
+                                   p = 4,
+                                   covs = as.matrix(database_filtered[,covariates]),
+                                   title = paste0("Plot of the ",outcomes[i]," outcome variable (filtered sample, full set of covariates)"))
 
 # Loop ends here
 }
 
+knitr::kable(outcome_results_sharp, caption = "Results of the Sharp RD design for each outcome using ifh as a running variable and a cutoff of 55 (filtered sample, no covariates)")
+
+knitr::kable(outcome_results_sharp_covariates, caption = "Results of the Sharp RD design for each outcome using ifh as a running variable and a cutoff of 55 (filtered sample, full set of covariates)")
+
+
 ```
 
-Nada tem efeito nessa bosta?
+
+
+```{r eval=FALSE, include=FALSE}
+# Exemplo com medicines
+# De novo precisa ser o database filtered
+
+medicines_sharp <- rdrobust::rdrobust(y = database_filtered$medicines,
+                                  x = database_filtered$ifh,
+                                  cluster = database_filtered$hh_id,
+                                  c = 55)
+
+# De novo vai dar aviso de mass point
+# O coeficiente, o pvalor robusto e os intervalos de confianca robustos estao nos objetos medicines_sharp$coef[1], medicines_sharp$pv[3], medicines_sharp$ci[3,1] (lower) e medicines_sharp$ci[3,2] (upper)
+
+medicines_sharp_coef <- medicines_sharp$coef[1]
+medicines_sharp_robust_pvalue <- medicines_sharp$pv[3]
+medicines_sharp_ci_lower <- medicines_sharp$ci[3,1]
+medicines_sharp_ci_upper <- medicines_sharp$ci[3,2]
+
+# Plot
+medicines_sharp_plt <- rdrobust::rdplot(y = database_filtered$medicines,
+                                   x = database_filtered$ifh,
+                                   c = 55,
+                                   p = 4,
+                                   title = "Plot of the medicines outcome variable")
+```
+
+As we can see, in both specifications, the estimated coefficients for all outcomes are not significant at any reasonable level.
 
 ## Fuzzy RD design
 
-In the fuzzy RD design, we don't have to restrict our sample, and use the running variable as an instrument. This gives us a larger sample size and allows us to estimate the effect unconditional on any subset of the population. However, as with any IV, we are estimating a LATE.
+In the fuzzy RD design, we don't have to restrict our sample, and use the running variable as an instrument. This gives us a larger sample size and allows us to estimate the effect unconditional on any subset of the population. However, as with any IV, we are estimating a LATE.[^2]
+
+[^2]: Actually, since there are no always takers in this setting, we are estimating the ATT instead of the LATE (thanks again Otávio!)
+
+To run a fuzzy RD, we have to construct a ``treatment`` variable that is equal to $1$ when the household is fully eligible, and $0$ otherwise. Then we set ``fuzzy = treatment``. Since the graphs are the same as the sharp case, I have omitted them here.
 
 ```{r}
+
+# First I create the treatment variable
+database_fuzzy <- database %>%
+  mutate(
+    treatment = ifelse(
+      (ifh < 55 & water_bill < 20 & electricity_bill < 20), 1, 0)
+    )
+
+# Here I create a dataframe that will receive the point estimation, robust pvalues and confidence intervals for each outcome
+outcome_results_fuzzy <- data.frame(
+  "outcome" = outcomes,
+  "coefficient" = numeric(4),
+  "robust_pvalue" = numeric(4),
+  "robust_ci_lower" = numeric(4),
+  "robust_ci_upper" = numeric(4)
+)
+
+outcome_results_fuzzy_covariates <- data.frame(
+  "outcome" = outcomes,
+  "coefficient" = numeric(4),
+  "robust_pvalue" = numeric(4),
+  "robust_ci_lower" = numeric(4),
+  "robust_ci_upper" = numeric(4)
+)
+
 for(i in 1:length(outcomes)){# Loop starts here
 
-cat(paste0("Results for the ",outcomes[i], " outcome variable \n"))
-cat(" \n")
+## No covariates
+ifh_fuzzy <- rdrobust::rdrobust(y = as.matrix(database_fuzzy[,outcomes[i]]),
+                                x = as.matrix(database_fuzzy[,"ifh"]),
+                                fuzzy = as.matrix(database_fuzzy[,"treatment"]),
+                                cluster = as.matrix(database_fuzzy[,"hh_id"]),
+                                c = 55)
 
-ifh_sharp <- rdrobust::rdrobust(y = as.matrix(database[,outcomes[i]]),
-                                x = as.matrix(database[,"ifh"]),
-                                fuzzy = as.matrix(database[,"ifh"]),
-                                cluster = as.matrix(database[,"hh_id"]),
-                                c = 55) %>%
-  summary()
+outcome_results_fuzzy$coefficient[i] <- round(ifh_fuzzy$coef[1],3)
+outcome_results_fuzzy$robust_pvalue[i] <- round(ifh_fuzzy$pv[3],3)
+outcome_results_fuzzy$robust_ci_lower[i] <- round(ifh_fuzzy$ci[3,1],3)
+outcome_results_fuzzy$robust_ci_upper[i] <- round(ifh_fuzzy$ci[3,2],3)
+
+ifh_fuzzy_plot <- rdrobust::rdplot(y = as.matrix(database[,outcomes[i]]),
+                                   x = as.matrix(database[,"ifh"]),
+                                   c = 55,
+                                   p = 4,
+                                   title = paste0("Plot of the ",outcomes[i]," outcome variable (full sample, no covariates)"))
+
+## Full set of covariates
+ifh_fuzzy_covariates <- rdrobust::rdrobust(y = as.matrix(database_fuzzy[,outcomes[i]]),
+                                x = as.matrix(database_fuzzy[,"ifh"]),
+                                fuzzy = as.matrix(database_fuzzy[,"treatment"]),
+                                cluster = as.matrix(database_fuzzy[,"hh_id"]),
+                                covs = as.matrix(database_fuzzy[,covariates]),
+                                c = 55)
+
+outcome_results_fuzzy_covariates$coefficient[i] <- round(ifh_fuzzy_covariates$coef[1],3)
+outcome_results_fuzzy_covariates$robust_pvalue[i] <- round(ifh_fuzzy_covariates$pv[3],3)
+outcome_results_fuzzy_covariates$robust_ci_lower[i] <- round(ifh_fuzzy_covariates$ci[3,1],3)
+outcome_results_fuzzy_covariates$robust_ci_upper[i] <- round(ifh_fuzzy_covariates$ci[3,2],3)
+
+ifh_fuzzy_plot <- rdrobust::rdplot(y = as.matrix(database[,outcomes[i]]),
+                                   x = as.matrix(database[,"ifh"]),
+                                   covs = as.matrix(database_fuzzy[,covariates]),
+                                   c = 55,
+                                   p = 4,
+                                   title = paste0("Plot of the ",outcomes[i]," outcome variable (full sample, full set of covariates)"))
+
 
 # Loop ends here
 }
 
+knitr::kable(outcome_results_fuzzy, caption = "Results of the Fuzzy RD design for each outcome using ifh as a running variable and a cutoff of 55 (full sample, no covariates).")
+
+knitr::kable(outcome_results_fuzzy_covariates, caption = "Results of the Fuzzy RD design for each outcome using ifh as a running variable and a cutoff of 55 (full sample, full set of covariates).")
+
 ```
 
+```{r eval=FALSE, include=FALSE}
+
+# Exemplo com medicines
+
+medicines_fuzzy <- rdrobust::rdrobust(y = database_fuzzy$medicines,
+                                      x = database_fuzzy$ifh,
+                                      fuzzy = database_fuzzy$treatment,
+                                      cluster = database_fuzzy$hh_id,
+                                      c = 55)
+
+# De novo vai dar aviso de mass point
+# O coeficiente, o pvalor robusto e os intervalos de confianca robustos estao nos objetos medicines_fuzzy$coef[1], medicines_fuzzy$pv[3], medicines_fuzzy$ci[3,1] (lower) e medicines_fuzzy$ci[3,2] (upper)
+
+medicines_fuzzy_coef <- medicines_fuzzy$coef[1]
+medicines_fuzzy_robust_pvalue <- medicines_fuzzy$pv[3]
+medicines_fuzzy_ci_lower <- medicines_fuzzy$ci[3,1]
+medicines_fuzzy_ci_upper <- medicines_fuzzy$ci[3,2]
+
+```
+
+In the fuzzy case, for both specifications, we only reject the null hypothesis for ``hosp_sugery``, at the 10% significance level.
+
 ## Conclusion
+
+Based on the results, I believe that, for the IFH variable, the assumptions for the RDD are reasonable. Recall that, as we discussed in the first question, since the households don't know that the survey is used to calculate their scores, and they don't know the cutoff, it's very difficult to argue that the IFH is susceptible to adjusting by the households, unlike the other two. The manipulation tests conducted seem to corroborate with this. I have tested the IFH for both samples, full and filtered, and also considered different values of cutoffs other than the actual value of $55$. The idea is that, if we rejected the null hypothesis for the actual cutoff only, and do not reject the null hypothesis for different values, this would be a stronger indicative that there was in fact non-random sorting at the running variable. However, we find that, in the full sample we reject the null hypothesis for several values -- more often than we don't, actually -- and in the filtered sample we don't reject the null hypothesis for any of the values, including the actual cutoff. Therefore, I think it's safe to assume that there is no manipulation of the IFH score.
+
+Another concern for the continuity assumption is the possible presence of an observable discontinuity change in the average values for relevant covariates. So I test all covariates -- except ``formal`` -- using placebo tests. @cattaneo2020 recommends conducting RD regressions using each covariate as outcome. For both the full and filtered samples, we do not reject the null hypothesis of a discontinuity at the density of any of the covariates near the cutoff. This is an indicative that these covariates are invariant to changes in the treatment assignment.
+
+Most of the estimated coefficients are not significant at any reasonable level. However, in the fuzzy RD design, we find that there is an statistical significant effect for the ``hosp_sugery`` outcome. This way, the access to state-funded health insurance policy have an positive effect on the frequency at which individuals go to the hospital or undergone surgery.
+
 
 # References
